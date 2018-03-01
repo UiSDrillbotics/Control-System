@@ -12,3 +12,13 @@ pip install PySerial
 Testes on MacOS, will be tested on windows soon.
 
 Need to manually select com port
+
+----
+
+#TODO:
+
+- Add controls to HMI
+- Implement circular buffer
+- Implement com port selection in HMI
+- Implement vertical height graph in HMI
+
