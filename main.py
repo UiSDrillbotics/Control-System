@@ -71,8 +71,9 @@ class ControlUI(QWidget,controls.Ui_C):
         self.pushButton_OpenPorts.clicked.connect(self.getComPorts)
 
     def showAdvancedUI(self):
-        self.dialog = GUI(self)
-        self.dialog.show()
+        self.window = QtWidgets.QWidget()
+        self.ui = GUI()
+        self.ui.show()
 
     def getComPorts(self):
         pass
