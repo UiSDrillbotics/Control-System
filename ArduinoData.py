@@ -30,7 +30,7 @@ class HoistingData(threading.Thread):
             except:
                 pass
 
-            time.sleep(2)
+            time.sleep(0.05)
 
     def getHoistingSensorData(self):
         self.lock.acquire()
@@ -88,7 +88,7 @@ class RotationData(threading.Thread):
             except:
                 pass
 
-            time.sleep(2)
+            time.sleep(0.05)
 
     def getRotationSensorData(self):# Get data in a save matter with locks 
         self.lock.acquire()
@@ -102,7 +102,7 @@ class CirculationData(threading.Thread):
         threading.Thread.__init__(self)
         self.lock = lock
         self.circulationSensor = {
-            "pump":1
+            "pressure":1
         }
         self.circulationQueue = queue.Queue()
         self.serialConn = serial.Serial()
@@ -112,7 +112,7 @@ class CirculationData(threading.Thread):
             # serVal = self.serialConn.read()
             rand = random.randint(10, 20)
             self.lock.acquire()
-            self.circulationSensor["pump"] = rand
+            self.circulationSensor["pressure"] = rand
             self.lock.release()
 
             try:
@@ -121,7 +121,7 @@ class CirculationData(threading.Thread):
             except:
                 pass
 
-            time.sleep(2)
+            time.sleep(0.05)
 
     def getCirculationSensorData(self):
         self.lock.acquire()

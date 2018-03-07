@@ -5,10 +5,12 @@ import ArduinoData
 import time
 import sys
 import pyqtdesign
+import controls
 import pyqtgraph as pg
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QThread,pyqtSignal,QTime
+
 
 
 #Print serial prorts for later use
@@ -35,9 +37,10 @@ t1.start()
 t2.start()
 t3.start()
 
+
 #Gets data and triggers the plot
 class GetData(QThread):
-    dataChanged = pyqtSignal(float, float, float, float,float,float)
+    dataChanged = pyqtSignal(float, float, float, float,float,float,float)
     def __init__(self, parent=None):
         QThread.__init__(self, parent)
         self.t = QTime()
@@ -51,15 +54,27 @@ class GetData(QThread):
             cSensorData = t2.getCirculationSensorData()
             rSensorData = t3.getRotationSensorData()
             WOB = hSensorData["WOB"]
-            Pressure = cSensorData["pump"]
+            Pressure = cSensorData["pressure"]
             Torque = rSensorData["torque"]
             RPM = rSensorData["RPM"]
             Vibration = rSensorData["vibration"]
+            MSE = 0.35*((WOB/1.125) + (120*3.14*RPM*Torque)/(1.125*1)) #Needs reconfiguration ROP and AB
+
             timeNow = float(self.t.elapsed())/1000
             time.sleep(0.1)
-            self.dataChanged.emit(WOB,Pressure,Torque,RPM,Vibration,timeNow) #Triggers and updates the plot
+            self.dataChanged.emit(WOB,Pressure,Torque,RPM,Vibration,MSE,timeNow) #Triggers and updates the plot
 
 
+class ControlUI(QWidget,controls.Ui_C):
+    def __init__(self, parent=None):
+        QWidget.__init__(self,parent)
+        self.setupUi(self)
+        self.pushButton_Advanced_UI.clicked.connect(self.showAdvancedUI)
+        
+
+    def showAdvancedUI(self):
+        self.dialog = GUI(self)
+        self.dialog.show()
 
 class GUI(QWidget,pyqtdesign.Ui_Form):
     #Init each plot, inherit the desingn produced in QT Desinger
@@ -70,6 +85,7 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         self.dataThread.start()
         self.setupUi(self)
         
+        
         #List of values that will be displayed in the graph
         self.RPM = []
         self.torque = []
@@ -77,6 +93,7 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         self.pressure = []
         self.time = []
         self.WOB = []
+        self.MSE = []
 
         #Init the RPM plot
         layoutRPM = QHBoxLayout()
@@ -138,36 +155,66 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         self.WOBCurve.setPen(pg.mkPen(color="#fff000", width=2))
         self.p4.getAxis('right').setLabel('WOB', color='#0000ff')
 
+        #Init the Pressure plot
+        layoutPressure = QHBoxLayout()
+        
+        self.PressurePlot = pg.PlotWidget()
+        layoutPressure.addWidget(self.PressurePlot)
+        self.graphicsView_5.setLayout(layoutPressure)
 
         
+        self.p5 = self.PressurePlot.plotItem
+        self.p5.setLabels(left='Pressure',bottom="Time[seconds]")
+        self.p5.showGrid(x = True, y = True, alpha = 0.4)   
+        self.PressureCurve = self.p5.plot()
+        self.PressureCurve.setPen(pg.mkPen(color="#fff000", width=2))
+        self.p5.getAxis('right').setLabel('Pressure', color='#0000ff')
+
+        #MSE Plot
+        layoutMSE = QHBoxLayout()
+        
+        self.MSEPlot = pg.PlotWidget()
+        layoutMSE.addWidget(self.MSEPlot)
+        self.graphicsView_6.setLayout(layoutMSE)
+
+        
+        self.p6 = self.MSEPlot.plotItem
+        self.p6.setLabels(left='MSE',bottom="Time[seconds]")
+        self.p6.showGrid(x = True, y = True, alpha = 0.4)   
+        self.MSECurve = self.p6.plot()
+        self.MSECurve.setPen(pg.mkPen(color="#fff000", width=2))
+        self.p6.getAxis('right').setLabel('MSE', color='#0000ff')
     #When called, push new data in the list of data and updates graph
-    def updateGraph(self,WOB,Pressure,Torque,RPM,Vibration,timeNow):
-        if len(self.RPM) < 800:
+    def updateGraph(self,WOB,Pressure,Torque,RPM,Vibration,MSE,timeNow):
+        if len(self.RPM) < 200:
             self.RPM.append(RPM)
             self.WOB.append(WOB)
             self.pressure.append(Pressure)
             self.torque.append(Torque)
             self.vibration.append(Vibration)
             self.time.append(timeNow)
+            self.MSE.append(MSE)
         else:
             self.RPM = self.RPM[1:] + [RPM]
             self.WOB = self.WOB[1:] + [WOB]
             self.pressure = self.pressure[1:] + [Pressure]
             self.torque = self.torque[1:] + [Torque]
             self.vibration = self.vibration[1:] + [Vibration]
+            self.MSE = self.MSE[1:] + [MSE]
             self.time = self.time[1:] + [timeNow]
 
         self.RPMCurve.setData(self.time,self.RPM)
         self.torqueCurve.setData(self.time,self.torque)
         self.vibrationCurve.setData(self.time, self.vibration)
         self.WOBCurve.setData(self.time, self.WOB)
+        self.PressureCurve.setData(self.time,self.pressure)
+        self.MSECurve.setData(self.time,self.MSE)
         
         
-    
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    ContSys = GUI()
+    ContSys = ControlUI()
     ContSys.show()
     sys.exit(app.exec_())
 
