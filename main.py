@@ -13,14 +13,7 @@ from PyQt5.QtCore import QThread,pyqtSignal,QTime
 
 
 
-#Print serial prorts for later use
-if sys.platform.startswith('win'):
-    import serial.tools.list_ports_windows
-    ports = serial.tools.list_ports_windows.comports()
-else:
-    import serial.tools.list_ports_osx
-    ports = serial.tools.list_ports_osx.comports()
-print(ports)
+
 
 #Lock for each arduino data storage
 hoistigLock = threading.Lock()
@@ -32,10 +25,7 @@ t1 = ArduinoData.HoistingData(hoistigLock)
 t2 = ArduinoData.CirculationData(circulationLock)
 t3 = ArduinoData.RotationData(rotationLock)
 
-#Start each thread
-t1.start()
-t2.start()
-t3.start()
+
 #Gets data and triggers the plot
 class GetData(QThread):
     dataChanged = pyqtSignal(float, float, float, float,float,float,float)
@@ -70,21 +60,48 @@ class ControlUI(QWidget,controls.Ui_C):
         self.pushButton_Advanced_UI.clicked.connect(self.showAdvancedUI)
         self.pushButton_OpenPorts.clicked.connect(self.getComPorts)
 
+        if sys.platform.startswith('win'):
+            import serial.tools.list_ports_windows
+            ports = serial.tools.list_ports_windows.comports()
+        else:
+            import serial.tools.list_ports_osx
+            ports = serial.tools.list_ports_osx.comports()
+
+        connectedPorts = []
+        for element in ports:
+            connectedPorts.append(str(element.device))
+        #Populates the comboboxes with connected ports
+        self.comboBox_Rotation.addItems(connectedPorts)
+        self.comboBox_Circulation.addItems(connectedPorts)
+        self.comboBox_Hoisting.addItems(connectedPorts)
+
     def showAdvancedUI(self):
         self.window = QtWidgets.QWidget()
-        self.ui = GUI()
+        self.dataThread = GetData(self)
+        self.ui = GUI(self.dataThread)
         self.ui.show()
 
     def getComPorts(self):
+
+        hoistingPort = self.comboBox_Rotation.currentText()
+        circulationPort = self.comboBox_Circulation.currentText()
+        rotationPort = self.comboBox_Rotation.currentText()
+
+        t3.setSerialPort(rotationPort)
+        #Start each thread
+        t1.start()
+        t2.start()
+        t3.start()
         pass
 
 
 
 class GUI(QWidget,pyqtdesign.Ui_Form):
     #Init each plot, inherit the desingn produced in QT Desinger
-    def __init__(self,parent=None):
+    
+    def __init__(self,dataThread,parent=None):
         QWidget.__init__(self,parent)
-        self.dataThread = GetData(self)
+        self.dataThread = dataThread
         self.dataThread.dataChanged.connect(self.updateGraph)
         self.dataThread.start()
         self.setupUi(self)

@@ -16,6 +16,7 @@ class HoistingData(threading.Thread):
         }
         self.hoistingQueue = queue.Queue()
         self.serialConn = serial.Serial()
+    
 
     def run(self):
         while True:
@@ -41,7 +42,7 @@ class HoistingData(threading.Thread):
 # Rotation contructior, read from rotation arduino and stores it in its own dictionary.
 # It also has a method for getting the stored data in a safe matter with locks.
 class RotationData(threading.Thread):
-    def __init__(self, lock,rotationSensor=0, comPort =""):
+    def __init__(self, lock,rotationSensor=0):
         threading.Thread.__init__(self)
         self.lock = lock
         self.rotationSensor = {
@@ -50,42 +51,47 @@ class RotationData(threading.Thread):
             "vibration":2
         }
         self.rotationQueue = queue.Queue()
-        if comPort!="":
-            self.serialConn = serial.Serial(port='/dev/cu.usbmodem1431',baudrate= 9600)
+        
+        self.serialConn = serial.Serial()
+    def setSerialPort(self,serialPort):
+        self.serialConn.baudrate = 9600
+        self.serialConn.port = serialPort
+        self.serialConn.open()
 
     def run(self):
         dataPrev = 0
         while True:
             #Get data from Arduino
             #Example on sensor data: t20
-            try:
-                rotationData = self.serialConn.readline().decode().strip('\r\n')
-                if not rotationData:
-                    continue
+        
+                
+            rotationData = self.serialConn.readline().decode().strip('\r\n')
+    
+            if not rotationData:
+                continue
 
-                sensorType = rotationData[0]
-                try:
-                    data = float(rotationData[1:])
-                    dataPrev = data
-                except:
-                    data = dataPrev
-            
-                if sensorType == 't':
-                    self.lock.acquire()
-                    self.rotationSensor["torque"] = data
-                    self.lock.release()
-                elif sensorType == 'r':
-                    self.lock.acquire()
-                    self.rotationSensor["RPM"] = data
-                    self.lock.release()
-                elif sensorType == 'v':
-                    self.lock.acquire()
-                    self.rotationSensor["vibration"] = data
-                    self.lock.release()
-                else:
-                    pass
+            sensorType = rotationData[0]
+            try:
+                data = float(rotationData[1:])
+                dataPrev = data
             except:
+                data = dataPrev
+        
+            if sensorType == 't':
+                self.lock.acquire()
+                self.rotationSensor["torque"] = data
+                self.lock.release()
+            elif sensorType == 'r':
+                self.lock.acquire()
+                self.rotationSensor["RPM"] = data
+                self.lock.release()
+            elif sensorType == 'v':
+                self.lock.acquire()
+                self.rotationSensor["vibration"] = data
+                self.lock.release()
+            else:
                 pass
+         
 
             try:
                 item = self.rotationQueue.get_nowait()
