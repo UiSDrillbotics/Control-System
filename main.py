@@ -36,8 +36,6 @@ t3 = ArduinoData.RotationData(rotationLock)
 t1.start()
 t2.start()
 t3.start()
-
-
 #Gets data and triggers the plot
 class GetData(QThread):
     dataChanged = pyqtSignal(float, float, float, float,float,float,float)
@@ -70,11 +68,16 @@ class ControlUI(QWidget,controls.Ui_C):
         QWidget.__init__(self,parent)
         self.setupUi(self)
         self.pushButton_Advanced_UI.clicked.connect(self.showAdvancedUI)
-        
+        self.pushButton_OpenPorts.clicked.connect(self.getComPorts)
 
     def showAdvancedUI(self):
         self.dialog = GUI(self)
         self.dialog.show()
+
+    def getComPorts(self):
+        pass
+
+
 
 class GUI(QWidget,pyqtdesign.Ui_Form):
     #Init each plot, inherit the desingn produced in QT Desinger
