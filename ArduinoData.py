@@ -17,6 +17,11 @@ class HoistingData(threading.Thread):
         self.hoistingQueue = queue.Queue()
         self.serialConn = serial.Serial()
     
+    def setSerialPort(self,serialPort):
+        self.serialConn.baudrate = 9600
+        self.serialConn.port = serialPort
+        self.serialConn.open()
+    
 
     def run(self):
         while True:
@@ -51,8 +56,8 @@ class RotationData(threading.Thread):
             "vibration":2
         }
         self.rotationQueue = queue.Queue()
-        
         self.serialConn = serial.Serial()
+
     def setSerialPort(self,serialPort):
         self.serialConn.baudrate = 9600
         self.serialConn.port = serialPort
@@ -63,8 +68,7 @@ class RotationData(threading.Thread):
         while True:
             #Get data from Arduino
             #Example on sensor data: t20
-        
-                
+           
             rotationData = self.serialConn.readline().decode().strip('\r\n')
     
             if not rotationData:
@@ -116,6 +120,11 @@ class CirculationData(threading.Thread):
         }
         self.circulationQueue = queue.Queue()
         self.serialConn = serial.Serial()
+
+    def setSerialPort(self,serialPort):
+        self.serialConn.baudrate = 9600
+        self.serialConn.port = serialPort
+        self.serialConn.open()
 
     def run(self):
         while True:

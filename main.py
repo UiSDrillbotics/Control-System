@@ -50,13 +50,16 @@ class GetData(QThread):
 
             timeNow = float(self.t.elapsed())/1000
             time.sleep(0.1)
-            self.dataChanged.emit(WOB,Pressure,Torque,RPM,Vibration,MSE,timeNow) #Triggers and updates the plot
+            self.dataChanged.emit(WOB,Pressure,Torque,RPM,Vibration,MSE,timeNow) #Triggers and updates the plot and labels
 
 
 class ControlUI(QWidget,controls.Ui_C):
     def __init__(self, parent=None):
         QWidget.__init__(self,parent)
         self.setupUi(self)
+        self.dataThread = GetData(self)
+        self.dataThread.start()
+        self.dataThread.dataChanged.connect(self.updateLabels)
         self.pushButton_Advanced_UI.clicked.connect(self.showAdvancedUI)
         self.pushButton_OpenPorts.clicked.connect(self.getComPorts)
 
@@ -75,25 +78,34 @@ class ControlUI(QWidget,controls.Ui_C):
         self.comboBox_Circulation.addItems(connectedPorts)
         self.comboBox_Hoisting.addItems(connectedPorts)
 
+
     def showAdvancedUI(self):
         self.window = QtWidgets.QWidget()
-        self.dataThread = GetData(self)
+       
         self.ui = GUI(self.dataThread)
         self.ui.show()
 
     def getComPorts(self):
-
+        
         hoistingPort = self.comboBox_Rotation.currentText()
         circulationPort = self.comboBox_Circulation.currentText()
         rotationPort = self.comboBox_Rotation.currentText()
-
+        t1.setSerialPort(hoistingPort)
+        t2.setSerialPort(circulationPort)
         t3.setSerialPort(rotationPort)
         #Start each thread
         t1.start()
         t2.start()
         t3.start()
-        pass
+        self.pushButton_OpenPorts.setDisabled(True)
 
+    def updateLabels(self,WOB,Pressure,Torque,RPM,Vibration,MSE,timeNow):
+        self.label_WOB.setText(str(WOB))
+        self.label_Pressure.setText(str(Pressure))
+        self.label_Torque.setText(str(Torque))
+        self.label_RPM.setText(str(RPM))
+        self.label_Z3.setText(str(Vibration))
+        self.label_MSE.setText(str(MSE))
 
 
 class GUI(QWidget,pyqtdesign.Ui_Form):
@@ -103,7 +115,7 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         QWidget.__init__(self,parent)
         self.dataThread = dataThread
         self.dataThread.dataChanged.connect(self.updateGraph)
-        self.dataThread.start()
+        
         self.setupUi(self)
         
         
@@ -205,6 +217,7 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         self.MSECurve = self.p6.plot()
         self.MSECurve.setPen(pg.mkPen(color="#fff000", width=2))
         self.p6.getAxis('right').setLabel('MSE', color='#0000ff')
+
     #When called, push new data in the list of data and updates graph
     def updateGraph(self,WOB,Pressure,Torque,RPM,Vibration,MSE,timeNow):
         if len(self.RPM) < 200:
@@ -238,4 +251,7 @@ if __name__ == "__main__":
     ContSys = ControlUI()
     ContSys.show()
     sys.exit(app.exec_())
+    t1._stop()
+    t2._stop()
+    t3._stop()
 
