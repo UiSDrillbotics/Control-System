@@ -9,9 +9,10 @@ pip install PyQt5
 
 pip install PySerial
 
-Testes on MacOS, will be tested on windows soon.
+pip install pyqtgraph
 
-Need to manually select com port
+Works on MacOS and Windows
+
 
 ----
 
