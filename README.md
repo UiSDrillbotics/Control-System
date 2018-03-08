@@ -17,8 +17,8 @@ Need to manually select com port
 
 #TODO:
 
-- Add controls to HMI
+- <strike>Add controls to HMI</strike>
 - Implement circular buffer
-- Implement com port selection in HMI
+- <strike>Implement com port selection in HMI</strike>
 - Implement vertical height graph in HMI
 
