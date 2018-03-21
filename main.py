@@ -11,6 +11,13 @@ from PyQt5.QtWidgets import *
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QThread,pyqtSignal,QTime
 
+import Hoisting
+import Circulation
+import Rotation
+import Coordinator
+
+
+
 
 
 
@@ -24,6 +31,10 @@ rotationLock = threading.Lock()
 t1 = ArduinoData.HoistingData(hoistigLock)
 t2 = ArduinoData.CirculationData(circulationLock)
 t3 = ArduinoData.RotationData(rotationLock)
+
+rotationSystem = Rotation.Rotation(t3)
+hoistingSystem = Hoisting.Hoisting(t1)
+
 
 
 #Gets data and triggers the plot
@@ -62,6 +73,17 @@ class ControlUI(QWidget,controls.Ui_C):
         self.dataThread.dataChanged.connect(self.updateLabels)
         self.pushButton_Advanced_UI.clicked.connect(self.showAdvancedUI)
         self.pushButton_OpenPorts.clicked.connect(self.getComPorts)
+        self.pushButton_RPM_Enter.clicked.connect(self.setRPM)
+        self.pushButton_Stop_Rotation.clicked.connect(self.stopRotation)
+        self.pushButton_Hoistiong_Enter.clicked.connect(self.moveHoisting)
+        self.pushButton_Calibrate.clicked.connect(self.calibrate)
+        self.pushButton_Open_Brake.clicked.connect(self.openBrake)
+        self.pushButton_Stop_Brake.clicked.connect(self.closeBreak)
+        self.pushButton_Stop_Hoisting.clicked.connect(self.stopHoisting)
+        self.pushButton_WOB_Ctrl.clicked.connect(self.wobControl)
+        self.pushButton_Telementary.clicked.connect(self.telementary)
+        self.pushButton_PID_Enter.clicked.connect(self.setPIDController)
+        self.pushButton_Reset_Stepper_Pos.clicked.connect(self.resetSteppers)
 
         if sys.platform.startswith('win'):
             import serial.tools.list_ports_windows
@@ -77,6 +99,12 @@ class ControlUI(QWidget,controls.Ui_C):
         self.comboBox_Rotation.addItems(connectedPorts)
         self.comboBox_Circulation.addItems(connectedPorts)
         self.comboBox_Hoisting.addItems(connectedPorts)
+
+        #Populates Accuator combobox
+        self.comboBox_Actuator.addItems(["1","2","3","All"])
+
+        #Populates the Driection combobox
+        self.comboBox_Direction.addItems(["Raise", "Lower"])
 
 
     def showAdvancedUI(self):
@@ -99,6 +127,61 @@ class ControlUI(QWidget,controls.Ui_C):
         t3.start()
         self.pushButton_OpenPorts.setDisabled(True)
 
+    def setRPM(self):
+        rpm = self.spinBox_RPM.value()
+        if int(rpm) == 0:
+            self.label_Rotating.setStyleSheet("background-color: white")
+            self.label_Stopped_2.setStyleSheet("background-color: green")
+        else:
+            self.label_Rotating.setStyleSheet("background-color: green")
+            self.label_Stopped_2.setStyleSheet("background-color: white")
+        rotationSystem.setRPM(int(rpm))
+
+    def stopRotation(self):
+        self.label_Rotating.setStyleSheet("background-color: white")
+        self.label_Stopped_2.setStyleSheet("background-color: green")
+        rotationSystem.setRPM(0)
+        
+    def moveHoisting(self):
+        actuator = self.comboBox_Actuator.currentText()
+        
+        distance = str(self.doubleSpinBox_Distance.value())
+        stepperDelay = str(self.doubleSpinBox_Stepper_Delay.value())
+
+        direction = self.comboBox_Direction.currentText()
+        
+        hoistingSystem.move(distance,direction,stepperDelay,actuator)
+
+    def calibrate(self):
+        hoistingSystem.calibrate()
+
+    def openBrake(self):
+        hoistingSystem.brake(2)
+
+    def closeBreak(self):
+        hoistingSystem.brake(1)
+
+    def stopHoisting(self):
+        hoistingSystem.stop()
+
+    def wobControl(self):
+        hoistingSystem.wob()
+
+    def telementary(self):
+        hoistingSystem.telemetry()
+    
+    def setPIDController(self):
+        wob = self.doubleSpinBox_WOB.value()
+        kp = self.doubleSpinBox_Kp.value()
+        ki = self.doubleSpinBox_Ki.value()
+        kd = self.doubleSpinBox_Kd.value()
+
+        hoistingSystem.setPID(wob,str(kp),str(ki),str(kd))
+        
+    def resetSteppers(self):
+        hoistingSystem.resetSteppers()
+
+
     def updateLabels(self,WOB,Pressure,Torque,RPM,Vibration,MSE,timeNow):
         self.label_WOB.setText(str(WOB))
         self.label_Pressure.setText(str(Pressure))
@@ -106,6 +189,8 @@ class ControlUI(QWidget,controls.Ui_C):
         self.label_RPM.setText(str(RPM))
         self.label_Z3.setText(str(Vibration))
         self.label_MSE.setText(str(MSE))
+    
+    
 
 
 class GUI(QWidget,pyqtdesign.Ui_Form):
@@ -251,7 +336,6 @@ if __name__ == "__main__":
     ContSys = ControlUI()
     ContSys.show()
     sys.exit(app.exec_())
-    t1._stop()
-    t2._stop()
-    t3._stop()
-
+   
+  
+    

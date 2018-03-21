@@ -1118,7 +1118,7 @@
       <string>Kj</string>
      </property>
     </widget>
-    <widget class="QDoubleSpinBox" name="doubleSpinBox_Kj"/>
+    <widget class="QDoubleSpinBox" name="doubleSpinBox_Ki"/>
     <widget class="QLabel" name="label_87">
      <property name="text">
       <string>Kd</string>
@@ -1741,7 +1741,7 @@
    <zorder>label_89</zorder>
    <zorder>doubleSpinBox_WOB</zorder>
    <zorder>doubleSpinBox_Kp</zorder>
-   <zorder>doubleSpinBox_Kj</zorder>
+   <zorder>doubleSpinBox_Ki</zorder>
    <zorder>doubleSpinBox_Kd</zorder>
    <zorder>pushButton_Hoistiong_Enter</zorder>
   </widget>
