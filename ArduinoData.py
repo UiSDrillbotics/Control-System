@@ -3,6 +3,10 @@ import random
 import time
 import queue
 import serial
+import logging,sys
+
+
+logging.basicConfig(stream=sys.stderr, level= logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
 
 # Hoisting contructior, read from hoistiong arduino and stores it in its own dictionary.
 #It also has a method for getting the stored data in a safe matter with locks.
@@ -12,11 +16,41 @@ class HoistingData(threading.Thread):
         self.stop_thread = False
         self.lock = lock
         self.hoistingSensor = {
-            "WOB": 0,
+            "brakeStatus" : 0,
+            "x1" : 0,
+            "x2" : 0,
+            "x3" : 0,
+            "y1" : 0,
+            "y2" : 0,
+            "y3" : 0,
+            "z1" : 0,
+            "z2" : 0,
+            "z3" : 0,
+            "sumX" : 0,
+            "sumY" : 0,
+            "sumZ" : 0,
+            "stepperArduinoPos1" : 0,
+            "stepperArduinoPos2" : 0,
+            "stepperArduinoPos3" : 0,
+            "hoistingMode" : 0,
+            "heightSensor" : 0,
+            "rop" : 0,
+            "rop3m" : 0
 
         }
         self.hoistingQueue = queue.Queue()
         self.serialConn = serial.Serial()
+        self.arduinoRailVoltage = 3.138
+
+        self.calibratedX1 = 1.0257 * self.arduinoRailVoltage
+        self.calibratedY1 = 1.0099 * self.arduinoRailVoltage
+        self.calibratedZ1 = 1.1513 * self.arduinoRailVoltage
+        self.calibratedX2 = 1.0402 * self.arduinoRailVoltage
+        self.calibratedY2 = 1.0452 * self.arduinoRailVoltage
+        self.calibratedZ2 = 1.1311 * self.arduinoRailVoltage
+        self.calibratedX3 = 1.0170 * self.arduinoRailVoltage
+        self.calibratedY3 = 0.9983 * self.arduinoRailVoltage
+        self.calibratedZ3 = 1.1453 * self.arduinoRailVoltage
     
     def setSerialPort(self,serialPort):
         self.serialConn.baudrate = 9600
@@ -26,23 +60,54 @@ class HoistingData(threading.Thread):
 
     def run(self):
         while self.stop_thread != True:
-
+            
+            #Get data from Arduino
+            #Example on sensor data: t20
             try:
                 item = self.hoistingQueue.get_nowait()
-                
+                print(item)
             except:
                 pass
-            rand = random.randint(1, 100)
-            self.lock.acquire()
-            self.hoistingSensor["WOB"] = rand
-            self.lock.release()
             try:
-                item = self.hoistingQueue.get_nowait()
-                
-            except:
-                pass
 
-            time.sleep(0.05)
+                hoistingData = self.serialConn.readline().decode().strip('\r\n').split("y")
+
+            except:
+                logging.debug("Cant recive hoisting arduino data ")
+                pass
+            if hoistingData:
+                try:
+                    self.lock.acquire()
+                    self.hoistingSensor["hoistingMode"] = float(hoistingData[0].split("x")[1])
+                    self.hoistingSensor["brakeStatus"] = float(hoistingData[2])
+                    self.hoistingSensor["heightSensor"] = float(hoistingData[3])
+                    self.hoistingSensor["stepperArduinoPos1"] = float(hoistingData[4])
+                    self.hoistingSensor["stepperArduinoPos2"] = float(hoistingData[5])
+                    self.hoistingSensor["stepperArduinoPos3"] = float(hoistingData[6])
+                    self.hoistingSensor["x1"] = (((float(hoistingData[7]) * (3.3 / 4096)) - (self.calibratedX1 / 2.0)) * (200 / self.calibratedX1)) * 0.101971621 # add (*1000) to get readings in gram.
+                    self.hoistingSensor["x2"] = (((float(hoistingData[8]) * (3.3 / 4096)) - (self.calibratedX2 / 2.0)) * (200 / self.calibratedX2)) * 0.101971621
+                    self.hoistingSensor["x3"] = (((float(hoistingData[9]) * (3.3 / 4096)) - (self.calibratedX3 / 2.0)) * (200 / self.calibratedX3)) * 0.101971621
+                    self.hoistingSensor["y1"] = (((float(hoistingData[10]) * (3.3 / 4096)) - (self.calibratedY1 / 2.0)) * (200 / self.calibratedY1)) * 0.101971621
+                    self.hoistingSensor["y2"] = (((float(hoistingData[11]) * (3.3 / 4096)) - (self.calibratedY2 / 2.0)) * (200 / self.calibratedY2)) * 0.101971621
+                    self.hoistingSensor["y3"] = (((float(hoistingData[12]) * (3.3 / 4096)) - (self.calibratedY3 / 2.0)) * (200 / self.calibratedY3)) * 0.101971621
+                    self.hoistingSensor["z1"] = (((float(hoistingData[13]) * (3.3 / 4096)) - (self.calibratedZ1 / 2.0)) * (200 / self.calibratedZ1)) * 0.101971621
+                    self.hoistingSensor["z2"] = (((float(hoistingData[14]) * (3.3 / 4096)) - (self.calibratedZ2 / 2.0)) * (200 / self.calibratedZ2)) * 0.101971621
+                    self.hoistingSensor["z3"] = (((float(hoistingData[15]) * (3.3 / 4096)) - (self.calibratedZ3 / 2.0)) * (200 / self.calibratedZ3)) * 0.101971621
+                    self.hoistingSensor["sumX"] = float(hoistingData[7]) + float(hoistingData[8]) + float(hoistingData[9]) 
+                    self.hoistingSensor["sumY"] = float(hoistingData[10]) + float(hoistingData[11]) + float(hoistingData[12]) 
+                    self.hoistingSensor["sumZ"] = float(hoistingData[13]) + float(hoistingData[14]) + float(hoistingData[15]) 
+                    
+                    self.hoistingSensor["rop"] = float(hoistingData[16])
+                    self.hoistingSensor["rop3m"] = float(hoistingData[17])
+                    self.lock.release()
+                except:
+                    try:
+                        self.lock.release()
+                    except:
+                        pass
+                    logging.debug("Cant place hoisting arduino data in dictonary")
+                    print(hoistingData)
+                    pass
 
     def getHoistingSensorData(self):
         self.lock.acquire()
@@ -58,9 +123,10 @@ class RotationData(threading.Thread):
         self.stop_thread = False
         self.lock = lock
         self.rotationSensor = {
-            "torque":0,
-            "RPM":0,
-            "vibration":0
+            "topDriveMode":0,
+            "mesuredRPM":0,
+            "torqueMotor":0,
+            "torqueSensor":0
         }
         self.rotationQueue = queue.Queue()
         self.serialConn = serial.Serial()
@@ -83,30 +149,30 @@ class RotationData(threading.Thread):
                 pass
             try:
 
-                rotationData = self.serialConn.readline().decode().strip('\r\n')
+                rotationData = self.serialConn.readline().decode().strip('\r\n').split("y")
+
             except:
+                logging.debug("Cant recive rotation arduino data ")
                 pass
             if rotationData:
                 try:
-                    sensorType = rotationData[0]
-                    data = float(rotationData[1:])
-                    dataPrev = data
-                    if sensorType == 't':
-                        self.lock.acquire()
-                        self.rotationSensor["torque"] = data
-                        self.lock.release()
-                    if sensorType == 'r':
-                        self.lock.acquire()
-                        self.rotationSensor["RPM"] = data
-                        self.lock.release()
-                    if sensorType == 'v':
-                        self.lock.acquire()
-                        self.rotationSensor["vibration"] = data
-                        self.lock.release()
+                    self.lock.acquire()
+                    self.rotationSensor["topDriveMode"] = float(rotationData[0].split("x")[1])
+                    self.rotationSensor["mesuredRPM"] = float(rotationData[1])
+                    self.rotationSensor["torqueMotor"] = float(rotationData[2])
+                    self.rotationSensor["torqueSensor"] = float(rotationData[3])
+                    self.lock.release()
                 except:
+                    try:
+                        self.lock.release()
+                    except:
+                        pass
+                    logging.debug("Cant place rotation arduino data in dictonary")
+                    print(rotationData)
                     pass
                     
-            time.sleep(0.05)
+            #time.sleep(0.05)
+            
 
     def getRotationSensorData(self):# Get data in a save matter with locks 
         self.lock.acquire()

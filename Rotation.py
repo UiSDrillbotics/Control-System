@@ -1,7 +1,7 @@
 import ArduinoData
 import logging,sys
 
-logging.basicConfig(stream=sys.stderr, level= logging.DEBUG)
+logging.basicConfig(stream=sys.stderr, level= logging.DEBUG, )
 
 class Rotation():
 

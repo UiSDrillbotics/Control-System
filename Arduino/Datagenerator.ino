@@ -17,12 +17,16 @@ void loop() {
   y = sin(v);
   y2 = cos(v);
   y3 = tan(v);
-  Serial.print("r");  
-  Serial.println(y);
-  Serial.print("t");
-  Serial.println(y2);
-  Serial.print("v");
-  Serial.println(y3);
+  Serial.write("x");  
+  Serial.print(y);
+  Serial.write("y");
+  Serial.print(y2);
+  Serial.write("y");
+  Serial.print(y3);
+  Serial.write("y");
+  Serial.print(y3+43);
+  Serial.write("y");
+  Serial.println("z");
   x = x+2.57;
   delay(100);
 }

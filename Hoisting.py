@@ -1,6 +1,8 @@
 from enum import Enum
 import HoistingData
-import logging
+import logging, sys
+
+logging.basicConfig(stream=sys.stderr, level= logging.DEBUG , datefmt='%Y-%m-%d %H:%M:%S')
 
 class CommandType(Enum):
     STOP = 1
@@ -52,6 +54,10 @@ class Hoisting:
         self.WOBSetpoint = None
 
         self.arduinoRailVoltage = 3.138
+        
+        self.hookLoad = 0
+
+        self.measuredWOB = 0
     
     def move(self,distance,direction,speed,actuator):
         logging.info(actuator + " actuator(s) will " + direction + " " + distance + " mm with " + speed + " stepper delay")
@@ -148,4 +154,19 @@ class Hoisting:
         logging.info("Resetting steppers")
     
     def resetWOB(self):
-        return
+        self.hookLoad = self.arduinoHoistingData.getHoistingSensorData()["sumZ"]
+        command = str(CommandType.RESETWOB.value)
+        output = command + ";"
+        self.arduinoHoistingData.hoistingQueue.put(output)
+        logging.info("Resetting WOB")
+    
+    def toggleHammerTime(self):
+        command = str(CommandType.HAMMER.value)
+        output = command + ";"
+        self.arduinoHoistingData.hoistingQueue.put(output)
+        logging.info("Toggling hammer time")
+
+    def getWOB(self):
+        WOB = self.hookLoad - self.arduinoHoistingData.getHoistingSensorData()["sumZ"]
+        self.measuredWOB = WOB
+        return WOB

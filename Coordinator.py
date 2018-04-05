@@ -3,7 +3,7 @@ import logging,sys
 import Hoisting
 import Rotation
 
-logging.basicConfig(stream=sys.stderr, level= logging.DEBUG)
+logging.basicConfig(stream=sys.stderr, level= logging.DEBUG , datefmt='%Y-%m-%d %H:%M:%S')
 
 class Problem(Enum):
     NormalAxialVibrations =1 

@@ -18,10 +18,6 @@ import Coordinator
 
 
 
-
-
-
-
 #Lock for each arduino data storage
 hoistigLock = threading.Lock()
 circulationLock = threading.Lock()
@@ -32,9 +28,10 @@ t1 = ArduinoData.HoistingData(hoistigLock)
 t2 = ArduinoData.CirculationData(circulationLock)
 t3 = ArduinoData.RotationData(rotationLock)
 
-rotationSystem = Rotation.Rotation(t3)
-hoistingSystem = Hoisting.Hoisting(t1)
 
+hoistingSystem = Hoisting.Hoisting(t1)
+circulationSystem = Circulation.Circulation(t2)
+rotationSystem = Rotation.Rotation(t3)
 
 
 #Gets data and triggers the plot
@@ -52,16 +49,31 @@ class GetData(QThread):
             hSensorData = t1.getHoistingSensorData()
             cSensorData = t2.getCirculationSensorData()
             rSensorData = t3.getRotationSensorData()
-            WOB = hSensorData["WOB"]
-            Pressure = cSensorData["pressure"]
-            Torque = rSensorData["torque"]
-            RPM = rSensorData["RPM"]
-            Vibration = rSensorData["vibration"]
-            MSE = 0.35*((WOB/1.125) + (120*3.14*RPM*Torque)/(1.125*1)) #Needs reconfiguration ROP and AB
+            RPM = rSensorData["mesuredRPM"]
+            torqueMotor = rSensorData["torqueMotor"]
+            torqueSensor = rSensorData["torqueSensor"]
+            pressure = cSensorData["pressure"]
+            Z1 = hSensorData["z1"]
+            Z2 = hSensorData["z2"]
+            Z3 = hSensorData["z3"]
+            sumZ = hSensorData["sumZ"]
+            ROP_15s = hSensorData["rop"]
+            ROP_3m = hSensorData["rop3m"]
+            MSE = 0
+            UCS = 0
+            torqueBit = 0
+            WOB = hoistingSystem.getWOB()
+            dExponenet = 0
+            Height = hSensorData["heightSensor"]
+            
+            
+            
+            vibration = 0
+            MSE = 0.35*((WOB/1.125) + (120*3.14*RPM*torqueMotor)/(1.125*1)) #Needs reconfiguration ROP and AB
 
             timeNow = float(self.t.elapsed())/1000
             time.sleep(0.1)
-            self.dataChanged.emit(WOB,Pressure,Torque,RPM,Vibration,MSE,timeNow) #Triggers and updates the plot and labels
+            self.dataChanged.emit(WOB,pressure,torqueMotor,RPM,vibration,MSE,timeNow) #Triggers and updates the plot and labels
 
 
 class ControlUI(QWidget,controls.Ui_C):
@@ -81,9 +93,12 @@ class ControlUI(QWidget,controls.Ui_C):
         self.pushButton_Stop_Brake.clicked.connect(self.closeBreak)
         self.pushButton_Stop_Hoisting.clicked.connect(self.stopHoisting)
         self.pushButton_WOB_Ctrl.clicked.connect(self.wobControl)
+        self.pushButton_Rese_WOB.clicked.connect(self.resetWOB)
         self.pushButton_Telementary.clicked.connect(self.telementary)
         self.pushButton_PID_Enter.clicked.connect(self.setPIDController)
         self.pushButton_Reset_Stepper_Pos.clicked.connect(self.resetSteppers)
+        self.pushButton_Start_Pump.clicked.connect(self.turnOnPump)
+        self.pushButton_Stop_Pump.clicked.connect(self.turnOffPump)
 
         if sys.platform.startswith('win'):
             import serial.tools.list_ports_windows
@@ -166,6 +181,9 @@ class ControlUI(QWidget,controls.Ui_C):
 
     def wobControl(self):
         hoistingSystem.wob()
+    
+    def resetWOB(self):
+        hoistingSystem.resetWOB()
 
     def telementary(self):
         hoistingSystem.telemetry()
@@ -181,6 +199,11 @@ class ControlUI(QWidget,controls.Ui_C):
     def resetSteppers(self):
         hoistingSystem.resetSteppers()
 
+    def turnOnPump(self):
+        circulationSystem.turnOnPump()
+    
+    def turnOffPump(self):
+        circulationSystem.turnOffPump()
 
     def updateLabels(self,WOB,Pressure,Torque,RPM,Vibration,MSE,timeNow):
         self.label_WOB.setText(str(WOB))
