@@ -53,19 +53,23 @@ class HoistingData(threading.Thread):
         self.calibratedZ3 = 1.1453 * self.arduinoRailVoltage
     
     def setSerialPort(self,serialPort):
-        self.serialConn.baudrate = 9600
+        self.serialConn.baudrate = 57600
         self.serialConn.port = serialPort
         self.serialConn.open()
     
 
     def run(self):
+        
         while self.stop_thread != True:
             
             #Get data from Arduino
             #Example on sensor data: t20
             try:
                 item = self.hoistingQueue.get_nowait()
+                self.serialConn.write(item.encode())
+                
                 print(item)
+
             except:
                 pass
             try:
@@ -74,6 +78,7 @@ class HoistingData(threading.Thread):
 
             except:
                 logging.debug("Cant recive hoisting arduino data ")
+                hoistingData = None
                 pass
             if hoistingData:
                 try:
@@ -108,6 +113,7 @@ class HoistingData(threading.Thread):
                     logging.debug("Cant place hoisting arduino data in dictonary")
                     print(hoistingData)
                     pass
+         
 
     def getHoistingSensorData(self):
         self.lock.acquire()
@@ -139,12 +145,13 @@ class RotationData(threading.Thread):
     def run(self):
         
         while self.stop_thread != True:
-            
+            print("Start")
             #Get data from Arduino
             #Example on sensor data: t20
             try:
                 item = self.rotationQueue.get_nowait()
                 print(item)
+                self.serialConn.write(item.encode())
             except:
                 pass
             try:
@@ -153,8 +160,11 @@ class RotationData(threading.Thread):
 
             except:
                 logging.debug("Cant recive rotation arduino data ")
+                rotationData = []
                 pass
-            if rotationData:
+            
+            if len(rotationData) == 5:
+                
                 try:
                     self.lock.acquire()
                     self.rotationSensor["topDriveMode"] = float(rotationData[0].split("x")[1])
@@ -171,7 +181,8 @@ class RotationData(threading.Thread):
                     print(rotationData)
                     pass
                     
-            #time.sleep(0.05)
+                    
+            
             
 
     def getRotationSensorData(self):# Get data in a save matter with locks 
@@ -186,7 +197,8 @@ class CirculationData(threading.Thread):
         threading.Thread.__init__(self,daemon=True)
         self.lock = lock
         self.circulationSensor = {
-            "pressure":1
+            "mode" :0,
+            "pressure":0
         }
         self.circulationQueue = queue.Queue()
         self.serialConn = serial.Serial()
@@ -199,19 +211,37 @@ class CirculationData(threading.Thread):
 
     def run(self):
         while self.stop_thread != True:
-            # serVal = self.serialConn.read()
-            rand = random.randint(10, 20)
-            self.lock.acquire()
-            self.circulationSensor["pressure"] = rand
-            self.lock.release()
-
             try:
                 item = self.circulationQueue.get_nowait()
-                
+                print(item)
+                self.serialConn.write(item.encode())
             except:
                 pass
+            try:
 
-            time.sleep(0.05)
+                circulationData = self.serialConn.readline().decode().strip('\r\n').split("y")
+
+            except:
+                logging.debug("Cant recive circulation arduino data ")
+                circulationData = []
+                pass
+            
+            if len(circulationData) == 3:
+                
+                try:
+                    self.lock.acquire()
+                    self.circulationSensor["mode"] = float(circulationData[0].split("x")[1])
+                    self.circulationSensor["pressure"] = float(circulationData[1])
+
+                    self.lock.release()
+                except:
+                    try:
+                        self.lock.release()
+                    except:
+                        pass
+                    logging.debug("Cant place rotation arduino data in dictonary")
+                    print(circulationData)
+                    pass
 
     def getCirculationSensorData(self):
         self.lock.acquire()

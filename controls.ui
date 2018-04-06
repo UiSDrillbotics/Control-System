@@ -851,7 +851,7 @@
       </widget>
      </item>
      <item row="14" column="0">
-      <widget class="QDoubleSpinBox" name="doubleSpinBox_Stepper_Delay"/>
+      <widget class="QDoubleSpinBox" name="spinBox_Stepper_Delay"/>
      </item>
      <item row="13" column="0">
       <widget class="QLabel" name="label_83">
@@ -1731,7 +1731,7 @@
    <zorder>label_82</zorder>
    <zorder>doubleSpinBox_Distance</zorder>
    <zorder>label_83</zorder>
-   <zorder>doubleSpinBox_Stepper_Delay</zorder>
+   <zorder>spinBox_Stepper_Delay</zorder>
    <zorder>label_84</zorder>
    <zorder>doubleSpinBox_RPM</zorder>
    <zorder>pushButton_RPM_Enter</zorder>

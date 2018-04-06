@@ -13,8 +13,8 @@ class Rotation():
         self.torqueSensor = 0
         self.TDDPTorque = 0
 
-        self.HardMinRPMLimit = 50
-        self.HardMaxRPMLimit  = 750
+        self.HardMinRPMLimit = 10
+        self.HardMaxRPMLimit  = 900
 
         self.setPointRPM = 0
         self.ArduinoRotationData = arduinoRotationData
@@ -22,7 +22,7 @@ class Rotation():
     def setRPM(self,rpm):
         if rpm == 0:
             self.setPointRPM = rpm
-            self.ArduinoRotationData.rotationQueue.put(self.setPointRPM)
+            self.ArduinoRotationData.rotationQueue.put(str(self.setPointRPM))
             logging.info("Stopped rotation")
         else:
             if rpm > self.HardMaxRPMLimit:
@@ -31,7 +31,7 @@ class Rotation():
                 self.setPointRPM = self.HardMinRPMLimit
             else:
                 self.setPointRPM = rpm
-            self.ArduinoRotationData.rotationQueue.put(self.setPointRPM)
+            self.ArduinoRotationData.rotationQueue.put(str(self.setPointRPM))
             logging.info("RPM set to " + str(self.setPointRPM))
 
 

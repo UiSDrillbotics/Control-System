@@ -16,6 +16,21 @@
                 "/System/Library/Frameworks",
                 "/Library/Frameworks"
             ]
+        },
+        {
+            "name": "Win32",
+            "includePath": [
+                "C:\\Users\\TeamUiS\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\sam\\1.6.11\\cores\\arduino"
+            ],
+            "browse": {
+                "limitSymbolsToIncludedHeaders": false,
+                "path": [
+                    "C:\\Users\\TeamUiS\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\sam\\1.6.11\\cores\\arduino"
+                ]
+            },
+            "intelliSenseMode": "msvc-x64",
+            "cStandard": "c11",
+            "cppStandard": "c++17"
         }
     ],
     "version": 3

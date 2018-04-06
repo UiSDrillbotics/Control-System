@@ -85,7 +85,7 @@ class Hoisting:
 
     def brake(self,mode):
         command = str(CommandType.BRAKES.value)
-        output = command + ";" + str(mode)
+        output = command + ";" + str(mode) + ";" + "\r"
         self.arduinoHoistingData.hoistingQueue.put(output)
         breakStatus = "Off"
         if mode ==2:

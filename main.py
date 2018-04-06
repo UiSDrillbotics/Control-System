@@ -36,7 +36,7 @@ rotationSystem = Rotation.Rotation(t3)
 
 #Gets data and triggers the plot
 class GetData(QThread):
-    dataChanged = pyqtSignal(float, float, float, float,float,float,float)
+    dataChanged = pyqtSignal(float,float,float,float, float, float, float,float,float,float,float,float,float)
     def __init__(self, parent=None):
         QThread.__init__(self, parent)
         self.t = QTime()
@@ -46,9 +46,11 @@ class GetData(QThread):
     def run(self):  
         self.t.start()
         while True:
+            #Get the dictonarys from the arduinoData module
             hSensorData = t1.getHoistingSensorData()
             cSensorData = t2.getCirculationSensorData()
             rSensorData = t3.getRotationSensorData()
+            #Init each variable with the correspondable dictonary value
             RPM = rSensorData["mesuredRPM"]
             torqueMotor = rSensorData["torqueMotor"]
             torqueSensor = rSensorData["torqueSensor"]
@@ -72,17 +74,23 @@ class GetData(QThread):
             MSE = 0.35*((WOB/1.125) + (120*3.14*RPM*torqueMotor)/(1.125*1)) #Needs reconfiguration ROP and AB
 
             timeNow = float(self.t.elapsed())/1000
+            #Sleeps to not overload the system
             time.sleep(0.1)
-            self.dataChanged.emit(WOB,pressure,torqueMotor,RPM,vibration,MSE,timeNow) #Triggers and updates the plot and labels
+            #Sends the new data to the chart and labels in the HMI
+            self.dataChanged.emit(ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,pressure,torqueMotor,RPM,vibration,MSE,timeNow) #Triggers and updates the plot and labels
 
 
 class ControlUI(QWidget,controls.Ui_C):
     def __init__(self, parent=None):
         QWidget.__init__(self,parent)
+        #Sets up the control interface(buttons, brakes, etc.)
         self.setupUi(self)
+        #Initializes and starts the thread responible for getting data to the HMI
         self.dataThread = GetData(self)
         self.dataThread.start()
+        #Sets up the connection between the data change thread and the HMI data update
         self.dataThread.dataChanged.connect(self.updateLabels)
+        #Functions for buttons in the HMI
         self.pushButton_Advanced_UI.clicked.connect(self.showAdvancedUI)
         self.pushButton_OpenPorts.clicked.connect(self.getComPorts)
         self.pushButton_RPM_Enter.clicked.connect(self.setRPM)
@@ -99,14 +107,15 @@ class ControlUI(QWidget,controls.Ui_C):
         self.pushButton_Reset_Stepper_Pos.clicked.connect(self.resetSteppers)
         self.pushButton_Start_Pump.clicked.connect(self.turnOnPump)
         self.pushButton_Stop_Pump.clicked.connect(self.turnOffPump)
-
+        #Gets the serial ports available in the operating system
+        #Temporary feature: Gets prots for MAC OS is testing occures on a MAC
         if sys.platform.startswith('win'):
             import serial.tools.list_ports_windows
             ports = serial.tools.list_ports_windows.comports()
         else:
             import serial.tools.list_ports_osx
             ports = serial.tools.list_ports_osx.comports()
-
+        #Stores the connected ports for the HMI to show
         connectedPorts = []
         for element in ports:
             connectedPorts.append(str(element.device))
@@ -121,27 +130,28 @@ class ControlUI(QWidget,controls.Ui_C):
         #Populates the Driection combobox
         self.comboBox_Direction.addItems(["Raise", "Lower"])
 
-
+    #Method for showing the advanced UI
     def showAdvancedUI(self):
         self.window = QtWidgets.QWidget()
-       
+        #Init the advanced UI window the the same datathread as the controls window
         self.ui = GUI(self.dataThread)
         self.ui.show()
 
     def getComPorts(self):
         
-        hoistingPort = self.comboBox_Rotation.currentText()
+        hoistingPort = self.comboBox_Hoisting.currentText()
         circulationPort = self.comboBox_Circulation.currentText()
         rotationPort = self.comboBox_Rotation.currentText()
+        #Get ports from the combobox and initialize connections with the ardionos in the arduinoData module
         t1.setSerialPort(hoistingPort)
         t2.setSerialPort(circulationPort)
         t3.setSerialPort(rotationPort)
-        #Start each thread
+        #Start each thread for getting and sending Arduino data 
         t1.start()
         t2.start()
         t3.start()
         self.pushButton_OpenPorts.setDisabled(True)
-
+    #Method for reading the selected RPM and send it to the Rotation module
     def setRPM(self):
         rpm = self.spinBox_RPM.value()
         if int(rpm) == 0:
@@ -160,8 +170,8 @@ class ControlUI(QWidget,controls.Ui_C):
     def moveHoisting(self):
         actuator = self.comboBox_Actuator.currentText()
         
-        distance = str(self.doubleSpinBox_Distance.value())
-        stepperDelay = str(self.doubleSpinBox_Stepper_Delay.value())
+        distance = str(int(self.doubleSpinBox_Distance.value()))
+        stepperDelay = str(int(self.spinBox_Stepper_Delay.value()))
 
         direction = self.comboBox_Direction.currentText()
         
@@ -205,13 +215,19 @@ class ControlUI(QWidget,controls.Ui_C):
     def turnOffPump(self):
         circulationSystem.turnOffPump()
 
-    def updateLabels(self,WOB,Pressure,Torque,RPM,Vibration,MSE,timeNow):
+    def updateLabels(self,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,timeNow):
         self.label_WOB.setText(str(WOB))
         self.label_Pressure.setText(str(Pressure))
-        self.label_Torque.setText(str(Torque))
+        self.label_Torque_Motor.setText(str(Torque))
         self.label_RPM.setText(str(RPM))
         self.label_Z3.setText(str(Vibration))
         self.label_MSE.setText(str(MSE))
+        self.label_Z1.setText(str(Z1))
+        self.label_Z2.setText(str(Z2))
+        self.label_Z3.setText(str(Z3))
+        self.label_SumZ.setText(str(sumZ))
+        self.label_ROP15.setText(str(ROP_15s))
+        self.label_ROP3.setText(str(ROP_3m))
     
     
 
@@ -327,7 +343,7 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         self.p6.getAxis('right').setLabel('MSE', color='#0000ff')
 
     #When called, push new data in the list of data and updates graph
-    def updateGraph(self,WOB,Pressure,Torque,RPM,Vibration,MSE,timeNow):
+    def updateGraph(self,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,timeNow):
         if len(self.RPM) < 200:
             self.RPM.append(RPM)
             self.WOB.append(WOB)
