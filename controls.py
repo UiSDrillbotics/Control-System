@@ -874,7 +874,7 @@ class Ui_C(object):
         self.label_ROP15.setText(_translate("C", "0"))
         self.label_32.setText(_translate("C", "ROP (3m)"))
         self.label_ROP3.setText(_translate("C", "0"))
-        self.label_34.setText(_translate("C", "MSE (MPa)"))
+        self.label_34.setText(_translate("C", "Q (LPM)")) #Change this
         self.label_MSE.setText(_translate("C", "0"))
         self.label_UCS.setText(_translate("C", "0"))
         self.label_37.setText(_translate("C", "UCS (MPa)"))
@@ -884,7 +884,7 @@ class Ui_C(object):
         self.label_41.setText(_translate("C", "WOB (kg)"))
         self.label_43.setText(_translate("C", "d-Eexponenet"))
         self.label_d_exponent.setText(_translate("C", "0"))
-        self.label_45.setText(_translate("C", "Heieght"))
+        self.label_45.setText(_translate("C", "Height"))
         self.label_Height.setText(_translate("C", "0"))
         self.label_54.setText(_translate("C", "Circulation system"))
         self.label_55.setText(_translate("C", "Hoisting system"))

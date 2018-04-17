@@ -36,7 +36,7 @@ rotationSystem = Rotation.Rotation(t3)
 
 #Gets data and triggers the plot
 class GetData(QThread):
-    dataChanged = pyqtSignal(float,float,float,float, float, float, float,float,float,float,float,float,float)
+    dataChanged = pyqtSignal(float,float,float,float,float, float, float, float,float,float,float,float,float,float)
     def __init__(self, parent=None):
         QThread.__init__(self, parent)
         self.t = QTime()
@@ -46,6 +46,7 @@ class GetData(QThread):
     def run(self):  
         self.t.start()
         while True:
+           
             #Get the dictonarys from the arduinoData module
             hSensorData = t1.getHoistingSensorData()
             cSensorData = t2.getCirculationSensorData()
@@ -55,20 +56,26 @@ class GetData(QThread):
             torqueMotor = rSensorData["torqueMotor"]
             torqueSensor = rSensorData["torqueSensor"]
             pressure = cSensorData["pressure"]
+
+
             Z1 = hSensorData["z1"]
             Z2 = hSensorData["z2"]
             Z3 = hSensorData["z3"]
             sumZ = hSensorData["sumZ"]
             ROP_15s = hSensorData["rop"]
             ROP_3m = hSensorData["rop3m"]
+            # 3. degree polynomial Q = (-72.831*pressure**3) + (499.29*pressure**2) - (1124.5*pressure) + 842.08
+            # 2. degree polynomial Q = (-19.109*pressure**2) + (95.095*pressure) - 106.56
+            Q = (3.7417*pressure) + 0.7122
+            
             MSE = 0
             UCS = 0
             torqueBit = 0
             WOB = hoistingSystem.getWOB()
             dExponenet = 0
             Height = hSensorData["heightSensor"]
-            
-            
+
+
             
             vibration = 0
             MSE = 0.35*((WOB/1.125) + (120*3.14*RPM*torqueMotor)/(1.125*1)) #Needs reconfiguration ROP and AB
@@ -77,8 +84,8 @@ class GetData(QThread):
             #Sleeps to not overload the system
             time.sleep(0.1)
             #Sends the new data to the chart and labels in the HMI
-            self.dataChanged.emit(ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,pressure,torqueMotor,RPM,vibration,MSE,timeNow) #Triggers and updates the plot and labels
-
+            self.dataChanged.emit(Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,pressure,torqueMotor,RPM,vibration,MSE,timeNow) #Triggers and updates the plot and labels
+        pressureData.close()
 
 class ControlUI(QWidget,controls.Ui_C):
     def __init__(self, parent=None):
@@ -125,7 +132,7 @@ class ControlUI(QWidget,controls.Ui_C):
         self.comboBox_Hoisting.addItems(connectedPorts)
 
         #Populates Accuator combobox
-        self.comboBox_Actuator.addItems(["1","2","3","All"])
+        self.comboBox_Actuator.addItems(["All","1","2","3"])
 
         #Populates the Driection combobox
         self.comboBox_Direction.addItems(["Raise", "Lower"])
@@ -169,13 +176,17 @@ class ControlUI(QWidget,controls.Ui_C):
         
     def moveHoisting(self):
         actuator = self.comboBox_Actuator.currentText()
-        
         distance = str(int(self.doubleSpinBox_Distance.value()))
         stepperDelay = str(int(self.spinBox_Stepper_Delay.value()))
-
         direction = self.comboBox_Direction.currentText()
-        
-        hoistingSystem.move(distance,direction,stepperDelay,actuator)
+        if actuator != "All":
+            #Check if the user if sure he/she want to move only one actuator
+            mb = QtGui.QMessageBox
+            question = mb.question(self,'', "Are you sure you want to move only one actuator?", mb.Yes | mb.No)
+            if question == mb.Yes:
+                hoistingSystem.move(distance,direction,stepperDelay,actuator)
+        else:
+            hoistingSystem.move(distance,direction,stepperDelay,actuator)
 
     def calibrate(self):
         hoistingSystem.calibrate()
@@ -210,22 +221,24 @@ class ControlUI(QWidget,controls.Ui_C):
         hoistingSystem.resetSteppers()
 
     def turnOnPump(self):
+        
         circulationSystem.turnOnPump()
     
     def turnOffPump(self):
         circulationSystem.turnOffPump()
 
-    def updateLabels(self,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,timeNow):
+    def updateLabels(self,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,timeNow):
+        WOB = float("{0:.2f}".format(WOB))
         self.label_WOB.setText(str(WOB))
         self.label_Pressure.setText(str(Pressure))
         self.label_Torque_Motor.setText(str(Torque))
         self.label_RPM.setText(str(RPM))
         self.label_Z3.setText(str(Vibration))
-        self.label_MSE.setText(str(MSE))
-        self.label_Z1.setText(str(Z1))
-        self.label_Z2.setText(str(Z2))
-        self.label_Z3.setText(str(Z3))
-        self.label_SumZ.setText(str(sumZ))
+        self.label_MSE.setText(str(Q))
+        self.label_Z1.setText(str(int(Z1)))
+        self.label_Z2.setText(str(int(Z2)))
+        self.label_Z3.setText(str(int(Z3)))
+        self.label_SumZ.setText(str(int(sumZ)))
         self.label_ROP15.setText(str(ROP_15s))
         self.label_ROP3.setText(str(ROP_3m))
     
@@ -343,7 +356,7 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         self.p6.getAxis('right').setLabel('MSE', color='#0000ff')
 
     #When called, push new data in the list of data and updates graph
-    def updateGraph(self,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,timeNow):
+    def updateGraph(self,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,timeNow):
         if len(self.RPM) < 200:
             self.RPM.append(RPM)
             self.WOB.append(WOB)
@@ -351,14 +364,14 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
             self.torque.append(Torque)
             self.vibration.append(Vibration)
             self.time.append(timeNow)
-            self.MSE.append(MSE)
+            self.MSE.append(Q)
         else:
             self.RPM = self.RPM[1:] + [RPM]
             self.WOB = self.WOB[1:] + [WOB]
             self.pressure = self.pressure[1:] + [Pressure]
             self.torque = self.torque[1:] + [Torque]
             self.vibration = self.vibration[1:] + [Vibration]
-            self.MSE = self.MSE[1:] + [MSE]
+            self.MSE = self.MSE[1:] + [Q]
             self.time = self.time[1:] + [timeNow]
 
         self.RPMCurve.setData(self.time,self.RPM)

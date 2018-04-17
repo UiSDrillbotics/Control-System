@@ -95,12 +95,12 @@ class HoistingData(threading.Thread):
                     self.hoistingSensor["y1"] = (((float(hoistingData[10]) * (3.3 / 4096)) - (self.calibratedY1 / 2.0)) * (200 / self.calibratedY1)) * 0.101971621
                     self.hoistingSensor["y2"] = (((float(hoistingData[11]) * (3.3 / 4096)) - (self.calibratedY2 / 2.0)) * (200 / self.calibratedY2)) * 0.101971621
                     self.hoistingSensor["y3"] = (((float(hoistingData[12]) * (3.3 / 4096)) - (self.calibratedY3 / 2.0)) * (200 / self.calibratedY3)) * 0.101971621
-                    self.hoistingSensor["z1"] = (((float(hoistingData[13]) * (3.3 / 4096)) - (self.calibratedZ1 / 2.0)) * (200 / self.calibratedZ1)) * 0.101971621
-                    self.hoistingSensor["z2"] = (((float(hoistingData[14]) * (3.3 / 4096)) - (self.calibratedZ2 / 2.0)) * (200 / self.calibratedZ2)) * 0.101971621
-                    self.hoistingSensor["z3"] = (((float(hoistingData[15]) * (3.3 / 4096)) - (self.calibratedZ3 / 2.0)) * (200 / self.calibratedZ3)) * 0.101971621
+                    self.hoistingSensor["z1"] = 4.376*(float(hoistingData[13])) -7343.673
+                    self.hoistingSensor["z2"] =  4.373*(float(hoistingData[14])) -7338.097
+                    self.hoistingSensor["z3"] =  4.363*(float(hoistingData[15]))-7321.419
                     self.hoistingSensor["sumX"] = float(hoistingData[7]) + float(hoistingData[8]) + float(hoistingData[9]) 
                     self.hoistingSensor["sumY"] = float(hoistingData[10]) + float(hoistingData[11]) + float(hoistingData[12]) 
-                    self.hoistingSensor["sumZ"] = float(hoistingData[13]) + float(hoistingData[14]) + float(hoistingData[15]) 
+                    self.hoistingSensor["sumZ"] = ((4.376*(float(hoistingData[13])) -7343.673) + (4.373*(float(hoistingData[14])) -7338.097) + (4.363*(float(hoistingData[15])) -7321.419))/1000
                     
                     self.hoistingSensor["rop"] = float(hoistingData[16])
                     self.hoistingSensor["rop3m"] = float(hoistingData[17])
@@ -145,7 +145,7 @@ class RotationData(threading.Thread):
     def run(self):
         
         while self.stop_thread != True:
-            print("Start")
+            
             #Get data from Arduino
             #Example on sensor data: t20
             try:
@@ -220,19 +220,20 @@ class CirculationData(threading.Thread):
             try:
 
                 circulationData = self.serialConn.readline().decode().strip('\r\n').split("y")
+                
 
             except:
                 logging.debug("Cant recive circulation arduino data ")
                 circulationData = []
                 pass
             
-            if len(circulationData) == 3:
+            if len(circulationData) == 2:
                 
                 try:
                     self.lock.acquire()
                     self.circulationSensor["mode"] = float(circulationData[0].split("x")[1])
-                    self.circulationSensor["pressure"] = float(circulationData[1])
-
+                    self.circulationSensor["pressure"] = float(circulationData[1].split("z")[0])
+                    
                     self.lock.release()
                 except:
                     try:
