@@ -29,7 +29,7 @@ t2 = ArduinoData.CirculationData(circulationLock)
 t3 = ArduinoData.RotationData(rotationLock)
 
 
-hoistingSystem = Hoisting.Hoisting(t1)
+hoistingSystem = Hoisting.Hoisting(t1,t3)
 circulationSystem = Circulation.Circulation(t2)
 rotationSystem = Rotation.Rotation(t3)
 
@@ -38,7 +38,7 @@ coordinationSystem = Coordinator.Coordination(hoistingSystem,rotationSystem,circ
 
 #Gets data and triggers the plot
 class GetData(QThread):
-    dataChanged = pyqtSignal(float,float,float,float,float, float, float, float,float,float,float,float,float,float)
+    dataChanged = pyqtSignal(float,float,float,float,float,float, float, float, float,float,float,float,float,float,float,float,float,float)
     def __init__(self, parent=None):
         QThread.__init__(self, parent)
         self.t = QTime()
@@ -54,7 +54,7 @@ class GetData(QThread):
             cSensorData = t2.getCirculationSensorData()
             rSensorData = t3.getRotationSensorData()
             #Init each variable with the correspondable dictonary value
-            RPM = rSensorData["mesuredRPM"]
+            RPM = rSensorData["measuredRPM"]
             torqueMotor = rSensorData["torqueMotor"]
             torqueSensor = rSensorData["torqueSensor"]
             pressure = cSensorData["pressure"]
@@ -64,17 +64,23 @@ class GetData(QThread):
             Z2 = hSensorData["z2"]
             Z3 = hSensorData["z3"]
             sumZ = hSensorData["sumZ"]
-            ROP_15s = hSensorData["rop"]
-            ROP_3m = hSensorData["rop3m"]
+            ROP_15s = (hoistingSystem.calcROP15s())/15
+            
+            ROP_3m = (hoistingSystem.calcROP3m())/180
             # 3. degree polynomial Q = (-72.831*pressure**3) + (499.29*pressure**2) - (1124.5*pressure) + 842.08
             # 2. degree polynomial Q = (-19.109*pressure**2) + (95.095*pressure) - 106.56
-            Q = (3.7417*pressure) + 0.7122
             
-            MSE = 0
-            UCS = 0
-            torqueBit = 0
+            if circulationSystem.pumpOn == False:
+                Q = 0
+
+            else:
+                Q = (3.7417*pressure) + 0.7122
+            
+            MSE = hoistingSystem.calcMSE() 
+            UCS = hoistingSystem.calcUCS()
+            torqueBit = 0 # must be updated here, and updated in hoistingSystem
             WOB = hoistingSystem.getWOB()
-            dExponenet = 0
+            dExponenet = hoistingSystem.calcDexponent()
             Height = hSensorData["heightSensor"]
 
 
@@ -86,7 +92,7 @@ class GetData(QThread):
             #Sleeps to not overload the system
             time.sleep(0.1)
             #Sends the new data to the chart and labels in the HMI
-            self.dataChanged.emit(Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,pressure,torqueMotor,RPM,vibration,MSE,timeNow) #Triggers and updates the plot and labels
+            self.dataChanged.emit(Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,pressure,torqueMotor,RPM,vibration,MSE,UCS,torqueBit,dExponenet,timeNow) #Triggers and updates the plot and labels
 
 
 class ControlUI(QWidget,controls.Ui_C):
@@ -131,9 +137,9 @@ class ControlUI(QWidget,controls.Ui_C):
         for element in ports:
             connectedPorts.append(str(element.device))
         #Populates the comboboxes with connected ports
-        self.comboBox_Rotation.addItems(connectedPorts)
-        self.comboBox_Circulation.addItems(connectedPorts)
-        self.comboBox_Hoisting.addItems(connectedPorts)
+        self.comboBox_Rotation.addItems(["COM5"]) # should be (connectedPorts) by default
+        self.comboBox_Circulation.addItems(["COM4"]) # should be (connectedPorts) by default
+        self.comboBox_Hoisting.addItems(["COM3"]) # should be (connectedPorts) by default
 
         #Populates Accuator combobox
         self.comboBox_Actuator.addItems(["All","1","2","3"])
@@ -243,7 +249,7 @@ class ControlUI(QWidget,controls.Ui_C):
         mb.information(self,' ',"Automated drilling is terimated, restart the system for a new drilling process",  mb.Ok | mb.Cancel)
  
     
-    def updateLabels(self,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,timeNow):
+    def updateLabels(self,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
         WOB = float("{0:.2f}".format(WOB))
         self.label_WOB.setText(str(WOB))
         self.label_Pressure.setText(str(Pressure))
@@ -257,6 +263,10 @@ class ControlUI(QWidget,controls.Ui_C):
         self.label_SumZ.setText(str(int(sumZ)))
         self.label_ROP15.setText(str(ROP_15s))
         self.label_ROP3.setText(str(ROP_3m))
+        self.label_Height.setText(str(Height))
+        self.label_UCS.setText(str(UCS))
+        #self.label_MSE.setText(str(MSE))
+        self.label_d_exponent.setText(str(dExponenet))
     
     
 
@@ -372,7 +382,7 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         self.p6.getAxis('right').setLabel('MSE', color='#0000ff')
 
     #When called, push new data in the list of data and updates graph
-    def updateGraph(self,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,timeNow):
+    def updateGraph(self,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
         if len(self.RPM) < 200:
             self.RPM.append(RPM)
             self.WOB.append(WOB)

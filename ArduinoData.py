@@ -34,9 +34,10 @@ class HoistingData(threading.Thread):
             "stepperArduinoPos3" : 0,
             "hoistingMode" : 0,
             "heightSensor" : 0,
-            "rop" : 0,
-            "rop3m" : 0,
+            "rop" : [],
+            "rop3m" : [],
             "wob" : 0
+            
 
         }
         self.hoistingQueue = queue.Queue()
@@ -59,13 +60,17 @@ class HoistingData(threading.Thread):
 
     
     def setSerialPort(self,serialPort):
-        self.serialConn.baudrate = 57600
-        self.serialConn.port = serialPort
-        self.serialConn.open()
+        try:
+
+            self.serialConn.baudrate = 57600
+            self.serialConn.port = serialPort
+            self.serialConn.open()
+        except:
+            logging.debug("Com port already in use")
     
 
     def run(self):
-        
+        old = time.time()
         while self.stop_thread != True:
             
             #Get data from Arduino
@@ -107,9 +112,19 @@ class HoistingData(threading.Thread):
                     self.hoistingSensor["sumX"] = float(hoistingData[7]) + float(hoistingData[8]) + float(hoistingData[9]) 
                     self.hoistingSensor["sumY"] = float(hoistingData[10]) + float(hoistingData[11]) + float(hoistingData[12]) 
                     self.hoistingSensor["sumZ"] = ((4.376*(float(hoistingData[13])) -7343.673) + (4.373*(float(hoistingData[14])) -7338.097) + (4.363*(float(hoistingData[15])) -7321.419))/1000
-                    
-                    self.hoistingSensor["rop"] = float(hoistingData[16])
-                    self.hoistingSensor["rop3m"] = float(hoistingData[17])
+                   
+                    if time.time() - old <= 15:
+                        self.hoistingSensor["rop"].append(float(hoistingData[4]))
+                    else:
+                        self.hoistingSensor["rop"].pop(0)
+                        self.hoistingSensor["rop"].append(float(hoistingData[4]))
+                   
+                    if time.time() - old <= 180:
+                        
+                        self.hoistingSensor["rop3m"].append(float(hoistingData[4]))
+                    else:
+                        self.hoistingSensor["rop3m"].pop(0)
+                        self.hoistingSensor["rop3m"].append(float(hoistingData[4]))
 
                     self.hoistingSensor["wob"] = self.hookLoad - ((4.376*(float(hoistingData[13])) -7343.673) + (4.373*(float(hoistingData[14])) -7338.097) + (4.363*(float(hoistingData[15])) -7321.419))
                     if self.taggedBottom == False and self.hoistingSensor["wob"] >= self.WOBSetPoint:
@@ -145,7 +160,7 @@ class RotationData(threading.Thread):
         self.lock = lock
         self.rotationSensor = {
             "topDriveMode":0,
-            "mesuredRPM":0,
+            "measuredRPM":0,
             "torqueMotor":0,
             "torqueSensor":0
         }
@@ -155,9 +170,12 @@ class RotationData(threading.Thread):
         self.overTorqueCounter = 0
 
     def setSerialPort(self,serialPort):
-        self.serialConn.baudrate = 9600
-        self.serialConn.port = serialPort
-        self.serialConn.open()
+        try:
+            self.serialConn.baudrate = 9600
+            self.serialConn.port = serialPort
+            self.serialConn.open()
+        except:
+            logging.debug("Com port already in use")
 
     def run(self):
         
@@ -183,7 +201,7 @@ class RotationData(threading.Thread):
                 try:
                     self.lock.acquire()
                     self.rotationSensor["topDriveMode"] = float(rotationData[0].split("x")[1])
-                    self.rotationSensor["mesuredRPM"] = float(rotationData[1])
+                    self.rotationSensor["measuredRPM"] = float(rotationData[1])
                     self.rotationSensor["torqueMotor"] = float(rotationData[2])
                     self.rotationSensor["torqueSensor"] = float(rotationData[3])
                     if self.rotationSensor["torqueMotor"] > 2.4:
@@ -224,9 +242,12 @@ class CirculationData(threading.Thread):
         self.stop_thread = False
 
     def setSerialPort(self,serialPort):
-        self.serialConn.baudrate = 9600
-        self.serialConn.port = serialPort
-        self.serialConn.open()
+        try:
+            self.serialConn.baudrate = 9600
+            self.serialConn.port = serialPort
+            self.serialConn.open()
+        except:
+            logging.debug("Com port already in use")
 
     def run(self):
         while self.stop_thread != True:

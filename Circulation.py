@@ -17,7 +17,7 @@ class Circulation:
         logging.info("Turning off pump")
 
     def turnOnPump(self):
-        self.pumpOn = False
+        self.pumpOn = True
         self.ArduinoRotationData.circulationQueue.put("1")
         logging.info("Turning on pump")
         

@@ -1,6 +1,8 @@
 from enum import Enum
 import HoistingData
+
 import logging, sys
+import math
 
 logging.basicConfig(stream=sys.stderr, level= logging.DEBUG , datefmt='%Y-%m-%d %H:%M:%S')
 
@@ -18,7 +20,7 @@ class CommandType(Enum):
     AUTOMATE = 13
 
 class Hoisting:
-    def __init__(self, ArduinoHoistingData):
+    def __init__(self, ArduinoHoistingData, ArduinoRotationData):
         self.hoistingData = HoistingData.HoistingData(
             brakeStatus = 0,
             x1 = 0,
@@ -40,6 +42,7 @@ class Hoisting:
 
         )
         self.arduinoHoistingData = ArduinoHoistingData
+        self.arduinoRotationData = ArduinoRotationData
         self.calibrated = False
         self.waitForBrakeStatus = False
         self.wobMode = None
@@ -171,3 +174,38 @@ class Hoisting:
         WOB = self.hookLoad - self.arduinoHoistingData.getHoistingSensorData()["sumZ"]
         self.measuredWOB = WOB
         return WOB
+
+    def calcROP15s(self):
+        data = self.arduinoHoistingData.getHoistingSensorData()["rop"]
+        if len(data) > 0:
+            return data[len(data)-1] - data[0]
+        else:
+            return 0
+    
+    def calcROP3m(self):
+        data = self.arduinoHoistingData.getHoistingSensorData()["rop3m"]
+        if len(data) > 0:
+            return data[len(data)-1] - data[0]
+        else:
+            return 0
+
+            # NB! Currently, the motor torque from the top drive is used as "bit torque". This must be calculated and updated into the next line:
+    def calcMSE(self):
+        if self.calcROP15s() == 0:
+            MSE = 0
+        else:         
+            rotData = self.arduinoRotationData.getRotationSensorData()
+            MSE = ((4*(self.getWOB())*9.8066500286389))/(math.pi*0.0286**2) + ((4*rotData["torqueMotor"]*rotData["measuredRPM"])/(math.pi*self.calcROP15s()*0.0286**2))
+        return MSE
+
+    def calcUCS(self):
+        UCS = 0.35*self.calcMSE()
+        return UCS
+
+    def calcDexponent(self):
+        if self.calcROP15s() == 0:
+            DEXP = 0
+        else:         
+            rotData = self.arduinoRotationData.getRotationSensorData()
+            DEXP = math.log10(abs(self.calcROP15s())/(60*rotData["measuredRPM"])) / math.log10((12*abs(self.getWOB())/(1000*0.028)))
+        return DEXP
