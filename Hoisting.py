@@ -133,7 +133,8 @@ class Hoisting:
         if WOB_Input > 15:
             return
         
-        self.WOBSetpoint = WOB_Input
+        self.arduinoHoistingData.WOBSetPoint = WOB_Input
+
         WOB = (WOB_Input/0.101971621)*(self.arduinoRailVoltage/200) * (4096/3.3)
        
         self.sendPID(int(WOB),kp,ki,kd)

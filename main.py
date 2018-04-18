@@ -33,6 +33,8 @@ hoistingSystem = Hoisting.Hoisting(t1)
 circulationSystem = Circulation.Circulation(t2)
 rotationSystem = Rotation.Rotation(t3)
 
+coordinationSystem = Coordinator.Coordination(hoistingSystem,rotationSystem,circulationSystem,t1,t3,t2)
+
 
 #Gets data and triggers the plot
 class GetData(QThread):
@@ -85,7 +87,7 @@ class GetData(QThread):
             time.sleep(0.1)
             #Sends the new data to the chart and labels in the HMI
             self.dataChanged.emit(Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,pressure,torqueMotor,RPM,vibration,MSE,timeNow) #Triggers and updates the plot and labels
-        pressureData.close()
+
 
 class ControlUI(QWidget,controls.Ui_C):
     def __init__(self, parent=None):
@@ -114,6 +116,8 @@ class ControlUI(QWidget,controls.Ui_C):
         self.pushButton_Reset_Stepper_Pos.clicked.connect(self.resetSteppers)
         self.pushButton_Start_Pump.clicked.connect(self.turnOnPump)
         self.pushButton_Stop_Pump.clicked.connect(self.turnOffPump)
+        self.pushButton_Start_Drilling.clicked.connect(self.startDrilling)
+        self.pushButton_Stop_Drilling.clicked.connect(self.stopDrilling)
         #Gets the serial ports available in the operating system
         #Temporary feature: Gets prots for MAC OS is testing occures on a MAC
         if sys.platform.startswith('win'):
@@ -227,6 +231,18 @@ class ControlUI(QWidget,controls.Ui_C):
     def turnOffPump(self):
         circulationSystem.turnOffPump()
 
+    def startDrilling(self):
+        if not coordinationSystem.runningThread:
+            coordinationSystem.runningThread = True
+            coordinationSystem.start()
+            
+    def stopDrilling(self):
+        coordinationSystem.turnOffSystem()
+        coordinationSystem.join()
+        mb = QtGui.QMessageBox
+        mb.information(self,' ',"Automated drilling is terimated, restart the system for a new drilling process",  mb.Ok | mb.Cancel)
+ 
+    
     def updateLabels(self,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,timeNow):
         WOB = float("{0:.2f}".format(WOB))
         self.label_WOB.setText(str(WOB))

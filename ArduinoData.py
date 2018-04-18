@@ -35,7 +35,8 @@ class HoistingData(threading.Thread):
             "hoistingMode" : 0,
             "heightSensor" : 0,
             "rop" : 0,
-            "rop3m" : 0
+            "rop3m" : 0,
+            "wob" : 0
 
         }
         self.hoistingQueue = queue.Queue()
@@ -51,6 +52,11 @@ class HoistingData(threading.Thread):
         self.calibratedX3 = 1.0170 * self.arduinoRailVoltage
         self.calibratedY3 = 0.9983 * self.arduinoRailVoltage
         self.calibratedZ3 = 1.1453 * self.arduinoRailVoltage
+
+        self.hookLoad = 0
+        self.WOBSetPoint = 0
+        self.taggedBottom = False
+
     
     def setSerialPort(self,serialPort):
         self.serialConn.baudrate = 57600
@@ -104,7 +110,12 @@ class HoistingData(threading.Thread):
                     
                     self.hoistingSensor["rop"] = float(hoistingData[16])
                     self.hoistingSensor["rop3m"] = float(hoistingData[17])
+
+                    self.hoistingSensor["wob"] = self.hookLoad - ((4.376*(float(hoistingData[13])) -7343.673) + (4.373*(float(hoistingData[14])) -7338.097) + (4.363*(float(hoistingData[15])) -7321.419))
+                    if self.taggedBottom == False and self.hoistingSensor["wob"] >= self.WOBSetPoint:
+                        self.taggedBottom == True
                     self.lock.release()
+                    
                 except:
                     try:
                         self.lock.release()
@@ -121,6 +132,10 @@ class HoistingData(threading.Thread):
         self.lock.release()
         return hs
 
+    def resetHookload(self):
+        self.lock.acquire()
+        self.hookLoad = self.hoistingSensor["sumZ"]
+        self.lock.release()
 # Rotation contructior, read from rotation arduino and stores it in its own dictionary.
 # It also has a method for getting the stored data in a safe matter with locks.
 class RotationData(threading.Thread):
@@ -137,6 +152,8 @@ class RotationData(threading.Thread):
         self.rotationQueue = queue.Queue()
         self.serialConn = serial.Serial()
 
+        self.overTorqueCounter = 0
+
     def setSerialPort(self,serialPort):
         self.serialConn.baudrate = 9600
         self.serialConn.port = serialPort
@@ -145,9 +162,7 @@ class RotationData(threading.Thread):
     def run(self):
         
         while self.stop_thread != True:
-            
-            #Get data from Arduino
-            #Example on sensor data: t20
+
             try:
                 item = self.rotationQueue.get_nowait()
                 print(item)
@@ -159,7 +174,7 @@ class RotationData(threading.Thread):
                 rotationData = self.serialConn.readline().decode().strip('\r\n').split("y")
 
             except:
-                logging.debug("Cant recive rotation arduino data ")
+                logging.debug("Cant recive rotation Arduino data ")
                 rotationData = []
                 pass
             
@@ -171,13 +186,17 @@ class RotationData(threading.Thread):
                     self.rotationSensor["mesuredRPM"] = float(rotationData[1])
                     self.rotationSensor["torqueMotor"] = float(rotationData[2])
                     self.rotationSensor["torqueSensor"] = float(rotationData[3])
+                    if self.rotationSensor["torqueMotor"] > 2.4:
+                        self.overTorqueCounter +=1 
+                    else:
+                        self.overTorqueCounter = 0
                     self.lock.release()
                 except:
                     try:
                         self.lock.release()
                     except:
                         pass
-                    logging.debug("Cant place rotation arduino data in dictonary")
+                    logging.debug("Cant place rotation Arduino data in dictionary")
                     print(rotationData)
                     pass
                     
