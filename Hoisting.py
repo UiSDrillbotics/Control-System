@@ -47,8 +47,8 @@ class Hoisting:
         self.waitForBrakeStatus = False
         self.wobMode = None
 
-        self.HardMinWOBLimit = 2
-        self.HardMaxWOBLimit = 6
+        self.HardMinWOBLimit = 0
+        self.HardMaxWOBLimit = 20
 
         self.KPropotinal = "0.0001"
         self.KIntegral = "0.0001"
@@ -66,7 +66,7 @@ class Hoisting:
         logging.info(actuator + " actuator(s) will " + direction + " " + distance + " mm with " + speed + " stepper delay")
         if direction == "Raise":
             direction = "1"
-        else:
+        if direction == "Lower":
             direction = "2"
 
         if actuator == "All":
@@ -133,13 +133,16 @@ class Hoisting:
             WOB_Input = self.HardMinWOBLimit
         if WOB_Input > self.HardMaxWOBLimit:
             WOB_Input = self.HardMaxWOBLimit
-        if WOB_Input > 15:
+        if WOB_Input > 21:
             return
         
         self.arduinoHoistingData.WOBSetPoint = WOB_Input
 
-        WOB = (WOB_Input/0.101971621)*(self.arduinoRailVoltage/200) * (4096/3.3)
-       
+        # WOB = (0.2288*WOB_Input*1000)+5034.3
+        sumZ = self.arduinoHoistingData.getHoistingSensorData()["sumZ"]
+
+        WOB = ((((sumZ+WOB_Input)*1000/3) + 7334.39633)/(4.3706)*3) - (((sumZ*1000/3) + 7334.39633)/(4.3706)*3)
+
         self.sendPID(int(WOB),kp,ki,kd)
     
     def sendPID(self, WOB, kp,ki,kd):
@@ -205,7 +208,10 @@ class Hoisting:
     def calcDexponent(self):
         if self.calcROP15s() == 0:
             DEXP = 0
-        else:         
-            rotData = self.arduinoRotationData.getRotationSensorData()
-            DEXP = math.log10(abs(self.calcROP15s())/(60*rotData["measuredRPM"])) / math.log10((12*abs(self.getWOB())/(1000*0.028)))
+        else:
+            try:         
+                rotData = self.arduinoRotationData.getRotationSensorData()
+                DEXP = math.log10(abs(self.calcROP15s())/(60*rotData["measuredRPM"])) / math.log10((12*abs(self.getWOB())/(1000*0.028)))
+            except:
+                DEXP = 0
         return DEXP

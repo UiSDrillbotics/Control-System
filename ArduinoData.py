@@ -4,6 +4,8 @@ import time
 import queue
 import serial
 import logging,sys
+from time import sleep
+
 
 
 logging.basicConfig(stream=sys.stderr, level= logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
@@ -42,17 +44,7 @@ class HoistingData(threading.Thread):
         }
         self.hoistingQueue = queue.Queue()
         self.serialConn = serial.Serial()
-        self.arduinoRailVoltage = 3.138
 
-        self.calibratedX1 = 1.0257 * self.arduinoRailVoltage
-        self.calibratedY1 = 1.0099 * self.arduinoRailVoltage
-        self.calibratedZ1 = 1.1513 * self.arduinoRailVoltage
-        self.calibratedX2 = 1.0402 * self.arduinoRailVoltage
-        self.calibratedY2 = 1.0452 * self.arduinoRailVoltage
-        self.calibratedZ2 = 1.1311 * self.arduinoRailVoltage
-        self.calibratedX3 = 1.0170 * self.arduinoRailVoltage
-        self.calibratedY3 = 0.9983 * self.arduinoRailVoltage
-        self.calibratedZ3 = 1.1453 * self.arduinoRailVoltage
 
         self.hookLoad = 0
         self.WOBSetPoint = 0
@@ -64,6 +56,7 @@ class HoistingData(threading.Thread):
 
             self.serialConn.baudrate = 57600
             self.serialConn.port = serialPort
+            self.serialConn.write_timeout = 0.1
             self.serialConn.open()
         except:
             logging.debug("Com port already in use")
@@ -77,14 +70,15 @@ class HoistingData(threading.Thread):
             #Example on sensor data: t20
             try:
                 item = self.hoistingQueue.get_nowait()
+
                 self.serialConn.write(item.encode())
                 
-                print(item)
+             
 
             except:
                 pass
             try:
-
+                #self.serialConn.reset_input_buffer()
                 hoistingData = self.serialConn.readline().decode().strip('\r\n').split("y")
 
             except:
@@ -100,17 +94,18 @@ class HoistingData(threading.Thread):
                     self.hoistingSensor["stepperArduinoPos1"] = float(hoistingData[4])
                     self.hoistingSensor["stepperArduinoPos2"] = float(hoistingData[5])
                     self.hoistingSensor["stepperArduinoPos3"] = float(hoistingData[6])
-                    self.hoistingSensor["x1"] = (((float(hoistingData[7]) * (3.3 / 4096)) - (self.calibratedX1 / 2.0)) * (200 / self.calibratedX1)) * 0.101971621 # add (*1000) to get readings in gram.
-                    self.hoistingSensor["x2"] = (((float(hoistingData[8]) * (3.3 / 4096)) - (self.calibratedX2 / 2.0)) * (200 / self.calibratedX2)) * 0.101971621
-                    self.hoistingSensor["x3"] = (((float(hoistingData[9]) * (3.3 / 4096)) - (self.calibratedX3 / 2.0)) * (200 / self.calibratedX3)) * 0.101971621
-                    self.hoistingSensor["y1"] = (((float(hoistingData[10]) * (3.3 / 4096)) - (self.calibratedY1 / 2.0)) * (200 / self.calibratedY1)) * 0.101971621
-                    self.hoistingSensor["y2"] = (((float(hoistingData[11]) * (3.3 / 4096)) - (self.calibratedY2 / 2.0)) * (200 / self.calibratedY2)) * 0.101971621
-                    self.hoistingSensor["y3"] = (((float(hoistingData[12]) * (3.3 / 4096)) - (self.calibratedY3 / 2.0)) * (200 / self.calibratedY3)) * 0.101971621
+                    # self.hoistingSensor["x1"] = (((float(hoistingData[7]) * (3.3 / 4096)) - (self.calibratedX1 / 2.0)) * (200 / self.calibratedX1)) * 0.101971621 # add (*1000) to get readings in gram.
+                    # self.hoistingSensor["x2"] = (((float(hoistingData[8]) * (3.3 / 4096)) - (self.calibratedX2 / 2.0)) * (200 / self.calibratedX2)) * 0.101971621
+                    # self.hoistingSensor["x3"] = (((float(hoistingData[9]) * (3.3 / 4096)) - (self.calibratedX3 / 2.0)) * (200 / self.calibratedX3)) * 0.101971621
+                    # self.hoistingSensor["y1"] = (((float(hoistingData[10]) * (3.3 / 4096)) - (self.calibratedY1 / 2.0)) * (200 / self.calibratedY1)) * 0.101971621
+                    # self.hoistingSensor["y2"] = (((float(hoistingData[11]) * (3.3 / 4096)) - (self.calibratedY2 / 2.0)) * (200 / self.calibratedY2)) * 0.101971621
+                    # self.hoistingSensor["y3"] 
+                    # = (((float(hoistingData[12]) * (3.3 / 4096)) - (self.calibratedY3 / 2.0)) * (200 / self.calibratedY3)) * 0.101971621
                     self.hoistingSensor["z1"] = 4.376*(float(hoistingData[13])) -7343.673
                     self.hoistingSensor["z2"] =  4.373*(float(hoistingData[14])) -7338.097
-                    self.hoistingSensor["z3"] =  4.363*(float(hoistingData[15]))-7321.419
-                    self.hoistingSensor["sumX"] = float(hoistingData[7]) + float(hoistingData[8]) + float(hoistingData[9]) 
-                    self.hoistingSensor["sumY"] = float(hoistingData[10]) + float(hoistingData[11]) + float(hoistingData[12]) 
+                    self.hoistingSensor["z3"] =  4.363*(float(hoistingData[15])) -7321.419
+                    #self.hoistingSensor["sumX"] = float(hoistingData[7]) + float(hoistingData[8]) + float(hoistingData[9]) 
+                    # self.hoistingSensor["sumY"] = float(hoistingData[10]) + float(hoistingData[11]) + float(hoistingData[12]) 
                     self.hoistingSensor["sumZ"] = ((4.376*(float(hoistingData[13])) -7343.673) + (4.373*(float(hoistingData[14])) -7338.097) + (4.363*(float(hoistingData[15])) -7321.419))/1000
                    
                     if time.time() - old <= 15:

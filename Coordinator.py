@@ -23,7 +23,7 @@ class Problem(Enum):
 class CoordinatorStates(Enum):
 
     JustStarted = 1     
-    Calibrating = 2 #going to the top, hitting the push buttons
+    Calibrating = 2
     Drilling = 3
     Completed = 4
     Aborted = 5
@@ -119,7 +119,8 @@ class Coordination(threading.Thread):
 
 
             if CoordinatorStates.StartDrilling == self.coordinatorState:
-                self.rotationSystem.RPM = 500
+                
+                self.rotationSystem.setRPM(500)
                 self.circulationSystem.turnOnPump()
                 self.hoistingSystem.setWOB(2.5)
                 self.hoistingSystem.wob(1)
@@ -135,14 +136,16 @@ class Coordination(threading.Thread):
                 problem = self.lookForProblems()
                 if Problem.NoProblem ==  problem:
                     if (self.setpointCountdown< 1):
-                        self.rotationSystem.RPM = self.rotationSystem.RPM +1 
-                        self.hoistingSystem.setWOB(self.hoistingSystem.WOBSetpoint + 1)
+                        self.rotationSystem.setPointRPM +=1
+                        self.hoistingSystem.WOBSetpoint+=1
+                        self.rotationSystem.setRPM(self.rotationSystem.setPointRPM+1)
+                        self.hoistingSystem.setWOB(self.hoistingData.WOBSetPoint+1)
                         self.setpointCountdown = 1000
 
                     self.hoistingSystem.wob(1)
                 else:
                     self.hoistingSystem.setWOB(2.5)
-                    self.rotationSystem.RPM = 500
+                    self.rotationSystem.setRPM(500)
                     logging.debug("coordinator" + self.coordinatorState)
                     logging.debug("problem" + problem)
 
@@ -221,7 +224,7 @@ class Coordination(threading.Thread):
                 self.hoistingSystem.wob(0)
                 self.hoistingSystem.resetSteppers()
                 self.position = self.hoistingSystem.getData().stepperArduinoPosition1
-                self.hoistingSystem.move("5", "Raise", 500, "4")
+                self.hoistingSystem.move("5", "Raise", "500", "4")
                 self.fuckitCountDown = 50
                 self.calibrationStep = 4
                 logging.info("CalibrationStep" + str(self.calibrationStep))
@@ -235,7 +238,7 @@ class Coordination(threading.Thread):
             
         
     def areWeCalibratedYet(self):
-        return (self.hoistingSystem.getData().hoistingMode == 8)
+        return (self.hoistingSystem.getData()["hoistingMode"] == 8)
     
     def areWeFinishedYet(self):
         if self.hoistingData.getHoistingSensorData()["stepperArduinoPos1"] > 650 and self.hoistingData.taggedBottom == True and self.doneDrilling==False:

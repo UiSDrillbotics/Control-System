@@ -10,6 +10,8 @@ import pyqtgraph as pg
 from PyQt5.QtWidgets import *
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QThread,pyqtSignal,QTime
+from PyQt5.QtWidgets import QApplication, QMainWindow
+import Drillbotics2018
 
 import Hoisting
 import Circulation
@@ -38,15 +40,17 @@ coordinationSystem = Coordinator.Coordination(hoistingSystem,rotationSystem,circ
 
 #Gets data and triggers the plot
 class GetData(QThread):
-    dataChanged = pyqtSignal(float,float,float,float,float,float, float, float, float,float,float,float,float,float,float,float,float,float)
+    dataChanged = pyqtSignal(float,float,float,float,float,float,float,float,float, float, float, float,float,float,float,float,float,float,float,float,float)
     def __init__(self, parent=None):
         QThread.__init__(self, parent)
         self.t = QTime()
+        
 
     def __del__(self):  # part of the standard format of a QThread
         self.wait()
     def run(self):  
         self.t.start()
+        
         while True:
            
             #Get the dictonarys from the arduinoData module
@@ -55,6 +59,8 @@ class GetData(QThread):
             rSensorData = t3.getRotationSensorData()
             #Init each variable with the correspondable dictonary value
             RPM = rSensorData["measuredRPM"]
+            if RPM <=0:
+                RPM = 0
             torqueMotor = rSensorData["torqueMotor"]
             torqueSensor = rSensorData["torqueSensor"]
             pressure = cSensorData["pressure"]
@@ -83,19 +89,22 @@ class GetData(QThread):
             dExponenet = hoistingSystem.calcDexponent()
             Height = hSensorData["heightSensor"]
 
-
+            act1 = hSensorData["stepperArduinoPos1"]
+            act2 = hSensorData["stepperArduinoPos2"]
+            act3 = hSensorData["stepperArduinoPos3"]
             
             vibration = 0
-            MSE = 0.35*((WOB/1.125) + (120*3.14*RPM*torqueMotor)/(1.125*1)) #Needs reconfiguration ROP and AB
+            
 
             timeNow = float(self.t.elapsed())/1000
+            
             #Sleeps to not overload the system
             time.sleep(0.1)
             #Sends the new data to the chart and labels in the HMI
-            self.dataChanged.emit(Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,pressure,torqueMotor,RPM,vibration,MSE,UCS,torqueBit,dExponenet,timeNow) #Triggers and updates the plot and labels
+            self.dataChanged.emit(act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,pressure,torqueMotor,RPM,vibration,MSE,UCS,torqueBit,dExponenet,timeNow) #Triggers and updates the plot and labels
 
 
-class ControlUI(QWidget,controls.Ui_C):
+class ControlUI(QWidget,Drillbotics2018.Ui_C):
     def __init__(self, parent=None):
         QWidget.__init__(self,parent)
         #Sets up the control interface(buttons, brakes, etc.)
@@ -108,22 +117,25 @@ class ControlUI(QWidget,controls.Ui_C):
         #Functions for buttons in the HMI
         self.pushButton_Advanced_UI.clicked.connect(self.showAdvancedUI)
         self.pushButton_OpenPorts.clicked.connect(self.getComPorts)
-        self.pushButton_RPM_Enter.clicked.connect(self.setRPM)
+        self.pushButton_StartRotation.clicked.connect(self.setRPM)
         self.pushButton_Stop_Rotation.clicked.connect(self.stopRotation)
-        self.pushButton_Hoistiong_Enter.clicked.connect(self.moveHoisting)
-        self.pushButton_Calibrate.clicked.connect(self.calibrate)
+        self.pushButton_MoveActuators.clicked.connect(self.moveHoisting)
+        #self.pushButton_Calibrate.clicked.connect(self.calibrate)
         self.pushButton_Open_Brake.clicked.connect(self.openBrake)
-        self.pushButton_Stop_Brake.clicked.connect(self.closeBreak)
+        self.pushButton_Close_Brake.clicked.connect(self.closeBreak)
         self.pushButton_Stop_Hoisting.clicked.connect(self.stopHoisting)
-        self.pushButton_WOB_Ctrl.clicked.connect(self.wobControl)
-        self.pushButton_Rese_WOB.clicked.connect(self.resetWOB)
+        self.pushButton_WOB_ctrl_on.clicked.connect(self.wobControlOn)
+        self.pushButton_WOB_Ctrl_off.clicked.connect(self.wobControlOff)
+        self.pushButton_Reset_WOB_2.clicked.connect(self.resetWOB)
         self.pushButton_Telementary.clicked.connect(self.telementary)
-        self.pushButton_PID_Enter.clicked.connect(self.setPIDController)
+        self.pushButton_SavePID.clicked.connect(self.setPIDController)
         self.pushButton_Reset_Stepper_Pos.clicked.connect(self.resetSteppers)
-        self.pushButton_Start_Pump.clicked.connect(self.turnOnPump)
+        self.pushButton_StartCirculation.clicked.connect(self.turnOnPump)
         self.pushButton_Stop_Pump.clicked.connect(self.turnOffPump)
         self.pushButton_Start_Drilling.clicked.connect(self.startDrilling)
         self.pushButton_Stop_Drilling.clicked.connect(self.stopDrilling)
+        self.pushButton_Reset_Hook_Load.clicked.connect(self.resetHookLoad)
+        self.pushButton
         #Gets the serial ports available in the operating system
         #Temporary feature: Gets prots for MAC OS is testing occures on a MAC
         if sys.platform.startswith('win'):
@@ -170,18 +182,18 @@ class ControlUI(QWidget,controls.Ui_C):
         self.pushButton_OpenPorts.setDisabled(True)
     #Method for reading the selected RPM and send it to the Rotation module
     def setRPM(self):
-        rpm = self.spinBox_RPM.value()
-        if int(rpm) == 0:
-            self.label_Rotating.setStyleSheet("background-color: white")
-            self.label_Stopped_2.setStyleSheet("background-color: green")
-        else:
-            self.label_Rotating.setStyleSheet("background-color: green")
-            self.label_Stopped_2.setStyleSheet("background-color: white")
+        rpm = self.doubleSpinBox_RPM.value()
+        #if int(rpm) == 0:
+            #self.label_Rotating.setStyleSheet("background-color: white")
+            #self.label_Stopped_2.setStyleSheet("background-color: green")
+        #else:
+            #self.label_Rotating.setStyleSheet("background-color: green")
+            #self.label_Stopped_2.setStyleSheet("background-color: white")
         rotationSystem.setRPM(int(rpm))
 
     def stopRotation(self):
-        self.label_Rotating.setStyleSheet("background-color: white")
-        self.label_Stopped_2.setStyleSheet("background-color: green")
+        #self.label_Rotating.setStyleSheet("background-color: white")
+        #self.label_Stopped_2.setStyleSheet("background-color: green")
         rotationSystem.setRPM(0)
         
     def moveHoisting(self):
@@ -198,8 +210,8 @@ class ControlUI(QWidget,controls.Ui_C):
         else:
             hoistingSystem.move(distance,direction,stepperDelay,actuator)
 
-    def calibrate(self):
-        hoistingSystem.calibrate()
+    #def calibrate(self):
+     #   hoistingSystem.calibrate()
 
     def openBrake(self):
         hoistingSystem.brake(2)
@@ -210,8 +222,11 @@ class ControlUI(QWidget,controls.Ui_C):
     def stopHoisting(self):
         hoistingSystem.stop()
 
-    def wobControl(self):
-        hoistingSystem.wob()
+    def wobControlOn(self):
+        hoistingSystem.wob(1)
+
+    def wobControlOff(self):
+        hoistingSystem.wob(0)
     
     def resetWOB(self):
         hoistingSystem.resetWOB()
@@ -237,6 +252,9 @@ class ControlUI(QWidget,controls.Ui_C):
     def turnOffPump(self):
         circulationSystem.turnOffPump()
 
+    def resetHookLoad(self):
+        t1.resetHookload()
+
     def startDrilling(self):
         if not coordinationSystem.runningThread:
             coordinationSystem.runningThread = True
@@ -249,24 +267,27 @@ class ControlUI(QWidget,controls.Ui_C):
         mb.information(self,' ',"Automated drilling is terimated, restart the system for a new drilling process",  mb.Ok | mb.Cancel)
  
     
-    def updateLabels(self,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
+    def updateLabels(self,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
         WOB = float("{0:.2f}".format(WOB))
         self.label_WOB.setText(str(WOB))
         self.label_Pressure.setText(str(Pressure))
-        self.label_Torque_Motor.setText(str(Torque))
+        self.label_Topdrive_Torque.setText(str(Torque))
         self.label_RPM.setText(str(RPM))
-        self.label_Z3.setText(str(Vibration))
+        self.label_Axial_Vibration.setText(str(Vibration))
         self.label_MSE.setText(str(Q))
-        self.label_Z1.setText(str(int(Z1)))
-        self.label_Z2.setText(str(int(Z2)))
-        self.label_Z3.setText(str(int(Z3)))
-        self.label_SumZ.setText(str(int(sumZ)))
+        self.label_LoadCell_Z1.setText(str(int(Z1)))
+        self.label_LoadCell_Z2.setText(str(int(Z2)))
+        self.label_LoadCell_Z3.setText(str(int(Z3)))
+        self.label_Hookload_SumZ.setText(str(int(sumZ)))
         self.label_ROP15.setText(str(ROP_15s))
         self.label_ROP3.setText(str(ROP_3m))
-        self.label_Height.setText(str(Height))
+        self.label_Height_Sensor.setText(str(Height))
         self.label_UCS.setText(str(UCS))
         #self.label_MSE.setText(str(MSE))
         self.label_d_exponent.setText(str(dExponenet))
+        self.label_Act1StepCount.setText(str(act1))
+        self.label_Act1StepCount.setText(str(act2))
+        self.label_Act1StepCount.setText(str(act3))
     
     
 
@@ -382,7 +403,7 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         self.p6.getAxis('right').setLabel('MSE', color='#0000ff')
 
     #When called, push new data in the list of data and updates graph
-    def updateGraph(self,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
+    def updateGraph(self,act1,act2,act,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
         if len(self.RPM) < 200:
             self.RPM.append(RPM)
             self.WOB.append(WOB)

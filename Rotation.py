@@ -14,7 +14,7 @@ class Rotation():
         self.TDDPTorque = 0
 
         self.HardMinRPMLimit = 10
-        self.HardMaxRPMLimit  = 900
+        self.HardMaxRPMLimit  = 1401
 
         self.setPointRPM = 0
         self.ArduinoRotationData = arduinoRotationData
