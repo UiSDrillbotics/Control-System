@@ -173,6 +173,11 @@ class Hoisting:
         self.arduinoHoistingData.hoistingQueue.put(output)
         logging.info("Toggling hammer time")
 
+    def automate(self):
+        command = str(CommandType.AUTOMATE.value)
+        output = command + ";"
+        self.arduinoHoistingData.hoistingQueue.put(output)
+        logging.info("Initiazing atuomated drilling...")
     def getWOB(self):
         WOB = self.hookLoad - self.arduinoHoistingData.getHoistingSensorData()["sumZ"]
         self.measuredWOB = WOB
