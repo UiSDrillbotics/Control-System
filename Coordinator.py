@@ -48,36 +48,23 @@ class Coordination(threading.Thread):
         #Init the system wit justStarted state
         self.coordinatorState = CoordinatorStates.JustStarted
 
-        self.sweepingActive = None
-        self.waitForWOBControl = None
-        self.stickSlip = None
-        self.dExponent = None
-        self.ccs = None
-        self.ucs = None
-        self.mse = None
         self.WOBincrease = 0.5
         self.RPMincrease  = 50
-        self.waitingToMoveUp = None
-        self.doneDrilling = None
-        self.stickSlipThread = None
+
         self.MinRPMLimit = 50
         self.MaxRPMLimit = 1200
         self.MinWOBLimit = 0
         self.MaxWOBLimit = 10
-        self.nMinRPMLimit = None
-        self.nMaxRPMLimit = None
-        self.nMinWOBLimit = None
-        self.nMaxWOBLimit = None
-
         self.setpointCountdown = 1000
 
         self.calibrationStep = 0
+        self.doneDrilling = False
 
         self.waitCountdown = 100
-        self.position = None
+        self.position = 0
         self.fuckitCountDown = 50
 
-        self.exceptPosition = None
+        self.exceptPosition = 0
         #----------Variables for ROP Optimization---------#
         
         self.calculatingROP = False
@@ -91,26 +78,23 @@ class Coordination(threading.Thread):
         self.oldRPM = 0
     
 
-    
-    def manageStickSlip(self):
-        self.stickSlip = True
-        self.hoistingSystem.wob(0)
-        #timer here
-        self.hoistingSystem.move("0.5", "1.0", "400","4.0")
+
 
     def run(self):
-        
+        #Thread for atuomated drilling
         while self.runningThread:
             self.setpointCountdown -=1
 
+            #----------Just Started State---------#
             if CoordinatorStates.JustStarted == self.coordinatorState:
                 self.calibrationStep = 0
+                #The automate methode initiazies the procedure for calibratinon in the Arduino code
                 self.hoistingSystem.automate()
                 self.coordinatorState = CoordinatorStates.Calibrating
                 
-
+            #----------Calibrating State---------#
             if CoordinatorStates.Calibrating == self.coordinatorState:
-    
+                #Check sensor data for problems
                 problem = self.lookForProblems()
                 
                 if Problem.NoProblem == problem:
@@ -124,7 +108,7 @@ class Coordination(threading.Thread):
                     self.coordinatorState = CoordinatorStates.StartDrilling
                     logging.debug("Coordinator " + str(self.coordinatorState))
 
-
+            #----------Start Drilling State---------#
             if CoordinatorStates.StartDrilling == self.coordinatorState:
                 
                 self.rotationSystem.setRPM(500)
@@ -133,7 +117,8 @@ class Coordination(threading.Thread):
                 self.hoistingSystem.wob(1)
                 self.coordinatorState = CoordinatorStates.Drilling
                 logging.debug("coordinator" + str(self.coordinatorState))
-            
+
+            #----------Drilling State---------#
             if CoordinatorStates.Drilling == self.coordinatorState:
 
                 if self.areWeFinishedYet():
@@ -142,20 +127,15 @@ class Coordination(threading.Thread):
 
                 problem = self.lookForProblems()
                 if Problem.NoProblem ==  problem:
-                    if (self.setpointCountdown< 1):
-                        self.optimizeROP()
-                        self.setpointCountdown = 1000
-
+                    #Continue with ROP optimization if no problem
+                    self.optimizeROP()
                     
                 else:
                     self.hoistingSystem.setWOB(2.5)
                     self.rotationSystem.setRPM(500)
                     logging.debug("coordinator" + str(self.coordinatorState))
                     logging.debug("problem" + str(problem))
-
-
                     self.mitigate(problem)
-
                 
                 anotherProblem = self.lookForProblems()
                 if Problem.NoProblem == anotherProblem:
@@ -167,10 +147,13 @@ class Coordination(threading.Thread):
                     logging.debug("problem " + str(problem))
                     self.mitigate(problem)
 
+            #----------Aborted State---------#
             if CoordinatorStates.Aborted == self.coordinatorState:
                 self.turnOffSystem()
                 self.coordinatorState = CoordinatorStates.JustStarted
                 logging.debug("coordinator" + str(self.coordinatorState))
+                
+            #----------Completed State---------#
             if CoordinatorStates.Completed == self.coordinatorState:
                 self.turnOffSystem()
                 self.coordinatorState = CoordinatorStates.JustStarted
@@ -233,9 +216,6 @@ class Coordination(threading.Thread):
             return False
     
     def mitigateStickSlip(self):
-
-
-
         if self.setpointCountdown > 500:
             hoistData = self.hoistingData.getHoistingSensorData()
             distanceToRaise = 5.0
@@ -244,7 +224,9 @@ class Coordination(threading.Thread):
             self.exceptPosition = hoistData["stepperArduinoPos1"]
             self.hoistingSystem.move(str(distanceToRaise), "1.0", "400", "4.0")
             self.hoistingSystem.wob(1)  
-    
+        
+
+
     def mitigateOverpressure(self):
 
         hoistData = self.hoistingData.getHoistingSensorData()
@@ -255,7 +237,6 @@ class Coordination(threading.Thread):
 
 
     def mitigate(self, problem):
-
 
         if Problem.DamagingAxialVibrations ==  problem:
             #rotationSystem.RPM = rotationSystem.RPM - RPMincrease * 0.5;
@@ -329,6 +310,7 @@ class Coordination(threading.Thread):
     def optimizeROP(self):
         #Checks wether to manipulate wob or rpm
         if self.optimizeWOB:
+            
             if not self.calculatingROP:
                 newWOB = self.hoistingData.WOBSetPoint + 0.1
                 if newWOB > self.MinWOBLimit and newWOB < self.MaxWOBLimit:

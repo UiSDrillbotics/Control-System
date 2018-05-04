@@ -40,11 +40,9 @@ class HoistingData(threading.Thread):
             "rop3m" : [],
             "wob" : 0
             
-
         }
         self.hoistingQueue = queue.Queue()
         self.serialConn = serial.Serial()
-
 
         self.hookLoad = 0
         self.WOBSetPoint = 0
@@ -65,22 +63,15 @@ class HoistingData(threading.Thread):
     def run(self):
         old = time.time()
         while self.stop_thread != True:
-            
-            #Get data from Arduino
-            #Example on sensor data: t20
+
             try:
                 item = self.hoistingQueue.get_nowait()
-
                 self.serialConn.write(item.encode())
-                
-             
-
             except:
                 pass
             try:
                 #self.serialConn.reset_input_buffer()
                 hoistingData = self.serialConn.readline().decode().strip('\r\n').split("y")
-
             except:
                 logging.debug("Cant recive hoisting arduino data ")
                 hoistingData = None
@@ -94,18 +85,9 @@ class HoistingData(threading.Thread):
                     self.hoistingSensor["stepperArduinoPos1"] = float(hoistingData[4])
                     self.hoistingSensor["stepperArduinoPos2"] = float(hoistingData[5])
                     self.hoistingSensor["stepperArduinoPos3"] = float(hoistingData[6])
-                    # self.hoistingSensor["x1"] = (((float(hoistingData[7]) * (3.3 / 4096)) - (self.calibratedX1 / 2.0)) * (200 / self.calibratedX1)) * 0.101971621 # add (*1000) to get readings in gram.
-                    # self.hoistingSensor["x2"] = (((float(hoistingData[8]) * (3.3 / 4096)) - (self.calibratedX2 / 2.0)) * (200 / self.calibratedX2)) * 0.101971621
-                    # self.hoistingSensor["x3"] = (((float(hoistingData[9]) * (3.3 / 4096)) - (self.calibratedX3 / 2.0)) * (200 / self.calibratedX3)) * 0.101971621
-                    # self.hoistingSensor["y1"] = (((float(hoistingData[10]) * (3.3 / 4096)) - (self.calibratedY1 / 2.0)) * (200 / self.calibratedY1)) * 0.101971621
-                    # self.hoistingSensor["y2"] = (((float(hoistingData[11]) * (3.3 / 4096)) - (self.calibratedY2 / 2.0)) * (200 / self.calibratedY2)) * 0.101971621
-                    # self.hoistingSensor["y3"] 
-                    # = (((float(hoistingData[12]) * (3.3 / 4096)) - (self.calibratedY3 / 2.0)) * (200 / self.calibratedY3)) * 0.101971621
                     self.hoistingSensor["z1"] = 4.376*(float(hoistingData[13])) -7343.673
                     self.hoistingSensor["z2"] =  4.373*(float(hoistingData[14])) -7338.097
                     self.hoistingSensor["z3"] =  4.363*(float(hoistingData[15])) -7321.419
-                    #self.hoistingSensor["sumX"] = float(hoistingData[7]) + float(hoistingData[8]) + float(hoistingData[9]) 
-                    # self.hoistingSensor["sumY"] = float(hoistingData[10]) + float(hoistingData[11]) + float(hoistingData[12]) 
                     self.hoistingSensor["sumZ"] = ((4.376*(float(hoistingData[13])) -7343.673) + (4.373*(float(hoistingData[14])) -7338.097) + (4.363*(float(hoistingData[15])) -7321.419))/1000
                    
                     if time.time() - old <= 15:
@@ -115,7 +97,6 @@ class HoistingData(threading.Thread):
                         self.hoistingSensor["rop"].append(float(hoistingData[4]))
                    
                     if time.time() - old <= 180:
-                        
                         self.hoistingSensor["rop3m"].append(float(hoistingData[4]))
                     else:
                         self.hoistingSensor["rop3m"].pop(0)
@@ -183,16 +164,13 @@ class RotationData(threading.Thread):
             except:
                 pass
             try:
-
                 rotationData = self.serialConn.readline().decode().strip('\r\n').split("y")
-
             except:
                 logging.debug("Cant recive rotation Arduino data ")
                 rotationData = []
                 pass
             
             if len(rotationData) == 5:
-                
                 try:
                     self.lock.acquire()
                     self.rotationSensor["topDriveMode"] = float(rotationData[0].split("x")[1])
@@ -253,9 +231,7 @@ class CirculationData(threading.Thread):
             except:
                 pass
             try:
-
-                circulationData = self.serialConn.readline().decode().strip('\r\n').split("y")
-                
+                circulationData = self.serialConn.readline().decode().strip('\r\n').split("y")     
 
             except:
                 logging.debug("Cant recive circulation arduino data ")

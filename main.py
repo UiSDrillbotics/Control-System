@@ -30,29 +30,26 @@ t1 = ArduinoData.HoistingData(hoistigLock)
 t2 = ArduinoData.CirculationData(circulationLock)
 t3 = ArduinoData.RotationData(rotationLock)
 
-
+#Init each system responsible for actions related to each Arduino
+#Each system is initialized with the ArduinoData thread that they use
 hoistingSystem = Hoisting.Hoisting(t1,t3)
 circulationSystem = Circulation.Circulation(t2)
 rotationSystem = Rotation.Rotation(t3)
-
 coordinationSystem = Coordinator.Coordination(hoistingSystem,rotationSystem,circulationSystem,t1,t3,t2)
 
 
 #Gets data and triggers the plot
 class GetData(QThread):
-    dataChanged = pyqtSignal(float,float,float,float,float,float,float,float,float, float, float, float,float,float,float,float,float,float,float,float,float)
+    dataChanged = pyqtSignal(float,float,float,float,float,float,float,float,
+        float, float, float, float,float,float,float,float,float,float,float,float,float)
     def __init__(self, parent=None):
         QThread.__init__(self, parent)
         self.t = QTime()
-        
-
     def __del__(self):  # part of the standard format of a QThread
         self.wait()
     def run(self):  
         self.t.start()
-        
         while True:
-           
             #Get the dictonarys from the arduinoData module
             hSensorData = t1.getHoistingSensorData()
             cSensorData = t2.getCirculationSensorData()
@@ -101,7 +98,9 @@ class GetData(QThread):
             #Sleeps to not overload the system
             time.sleep(0.1)
             #Sends the new data to the chart and labels in the HMI
-            self.dataChanged.emit(act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,pressure,torqueMotor,RPM,vibration,MSE,UCS,torqueBit,dExponenet,timeNow) #Triggers and updates the plot and labels
+            self.dataChanged.emit(act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,
+                sumZ,WOB,pressure,torqueMotor,RPM,vibration,MSE,UCS,torqueBit,dExponenet,timeNow) 
+            #Triggers and updates the plot and labels
 
 
 class ControlUI(QWidget,Drillbotics2018.Ui_C):
@@ -319,7 +318,6 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         layoutRPM.addWidget(self.RPMPlot)
         self.graphicsView_2.setLayout(layoutRPM) # Places the plot in the graphisView from the desinger
 
-        
         self.p1 = self.RPMPlot.plotItem
         self.p1.setLabels(left='RPM',bottom="Time[seconds]")
         self.p1.showGrid(x = True, y = True, alpha = 0.4)   
