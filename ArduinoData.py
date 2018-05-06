@@ -38,7 +38,8 @@ class HoistingData(threading.Thread):
             "heightSensor" : 0,
             "rop" : [],
             "rop3m" : [],
-            "wob" : 0
+            "wob" : 0,
+            "TVD" : 0
             
         }
         self.hoistingQueue = queue.Queue()
@@ -47,6 +48,8 @@ class HoistingData(threading.Thread):
         self.hookLoad = 0
         self.WOBSetPoint = 0
         self.taggedBottom = False
+        self.newTVD = 0
+        self.oldTVD = 0
 
     
     def setSerialPort(self,serialPort):
@@ -54,7 +57,8 @@ class HoistingData(threading.Thread):
 
             self.serialConn.baudrate = 57600
             self.serialConn.port = serialPort
-            self.serialConn.write_timeout = 0.1
+            self.serialConn.write_timeout = 0
+            #self.serialConn.set_buffer_size(rx_size = 128000, tx_size = 128000)
             self.serialConn.open()
         except:
             logging.debug("Com port already in use")
@@ -62,16 +66,19 @@ class HoistingData(threading.Thread):
 
     def run(self):
         old = time.time()
+        self.serialConn.flushInput()
         while self.stop_thread != True:
 
-            try:
+            if not self.hoistingQueue.empty():
+                #self.serialConn.reset_input_buffer()
+                #self.serialConn.reset_output_buffer()
                 item = self.hoistingQueue.get_nowait()
                 self.serialConn.write(item.encode())
-            except:
-                pass
+           
             try:
                 #self.serialConn.reset_input_buffer()
                 hoistingData = self.serialConn.readline().decode().strip('\r\n').split("y")
+                
             except:
                 logging.debug("Cant recive hoisting arduino data ")
                 hoistingData = None
@@ -105,6 +112,10 @@ class HoistingData(threading.Thread):
                     self.hoistingSensor["wob"] = self.hookLoad - ((4.376*(float(hoistingData[13])) -7343.673) + (4.373*(float(hoistingData[14])) -7338.097) + (4.363*(float(hoistingData[15])) -7321.419))
                     if self.taggedBottom == False and self.hoistingSensor["wob"] >= self.WOBSetPoint:
                         self.taggedBottom == True
+
+                    self.newTVD += (self.hoistingSensor["stepperArduinoPos1"] - self.oldTVD)
+                    self.oldTVD = self.newTVD
+                    self.hoistingSensor["TVD"] = self.newTVD
                     self.lock.release()
                     
                 except:

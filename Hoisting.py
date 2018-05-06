@@ -50,7 +50,7 @@ class Hoisting:
         self.HardMinWOBLimit = 0
         self.HardMaxWOBLimit = 20
 
-        self.KPropotinal = "0.0001"
+        self.KPropotinal = "0.00001"
         self.KIntegral = "0.0001"
         self.KDifferential = "0.00"
 
@@ -72,14 +72,14 @@ class Hoisting:
         if actuator == "All":
             actuator = "4"
         command = str(CommandType.MOVE.value)
-        output = command + ";" + distance + ";" + direction + ";" + speed + ";" + actuator + ";"
+        output = command + ";" + distance + ";" + direction + ";" + speed + ";" + actuator + ";"+ "\n"
         self.arduinoHoistingData.hoistingQueue.put(output)
 
 
 
     def calibrate(self):
         command = str(CommandType.CALIBRATE.value)
-        output = command + ";"
+        output = command + ";"+ "\n"
         self.arduinoHoistingData.hoistingQueue.put(output)
         logging.info("Calibrating hoisting system...")
         self.calibrated = True
@@ -88,7 +88,7 @@ class Hoisting:
 
     def brake(self,mode):
         command = str(CommandType.BRAKES.value)
-        output = command + ";" + str(mode) + ";" + "\r"
+        output = command + ";" + str(mode) + ";" + "\n"
         self.arduinoHoistingData.hoistingQueue.put(output)
         breakStatus = "Off"
         if mode ==2:
@@ -98,7 +98,7 @@ class Hoisting:
 
     def stop(self):
         command = str(CommandType.STOP.value)
-        output = command + ";"
+        output = command + ";"+ "\n"
         self.arduinoHoistingData.hoistingQueue.put(output)
         logging.info("Hoisting stopping...")
 
@@ -110,14 +110,14 @@ class Hoisting:
                 mode= 1
         
         command = str(CommandType.WOB.value)
-        output = command + ";" + str(mode) + ";"
+        output = command + ";" + str(mode) + ";"+ "\n"
         self.arduinoHoistingData.hoistingQueue.put(output) 
         self.wobMode = mode
         logging.info("Wob mode set to " + str(mode))
 
     def telemetry(self):
         command = str(CommandType.TELEMETRY.value)
-        output = command + ";"
+        output = command + ";"+ "\n"
         self.arduinoHoistingData.hoistingQueue.put(output)
         logging.info("Telementry turned on")
 
@@ -126,7 +126,7 @@ class Hoisting:
             WOB = self.HardMinWOBLimit
         if WOB > self.HardMaxWOBLimit:
             WOB = self.HardMaxWOBLimit
-        self.setPID(WOB,self.KPropotinal, self.KIntegral, self.KPropotinal)
+        self.setPID(WOB,self.KPropotinal, self.KIntegral, self.KDifferential)
 
     def setPID(self, WOB_Input, kp, ki, kd):
         if WOB_Input < self.HardMinWOBLimit:
@@ -150,32 +150,32 @@ class Hoisting:
         self.KIntegral = ki
         self.KDifferential = kd
         command = str(CommandType.PID.value)
-        output = command + ";" + str(WOB) + ";" + kp + ";" + ki + ";" + kd + ";"
+        output = command + ";" + str(WOB) + ";" + kp + ";" + ki + ";" + kd + ";"+ "\n"
         self.arduinoHoistingData.hoistingQueue.put(output)
         logging.info("PID controller set with WOB: " + str(WOB) + " and parameters p: "+ kp + " i: "+ ki + " d: " + kd)
 
     def resetSteppers(self):
         command = str(CommandType.RESETSTEPPERS.value)
-        output = command + ";"
+        output = command + ";"+ "\n"
         self.arduinoHoistingData.hoistingQueue.put(output)
         logging.info("Resetting steppers")
     
     def resetWOB(self):
         self.hookLoad = self.arduinoHoistingData.getHoistingSensorData()["sumZ"]
         command = str(CommandType.RESETWOB.value)
-        output = command + ";"
+        output = command + ";"+ "\n"
         self.arduinoHoistingData.hoistingQueue.put(output)
         logging.info("Resetting WOB")
     
     def toggleHammerTime(self):
         command = str(CommandType.HAMMER.value)
-        output = command + ";"
+        output = command + ";"+ "\n"
         self.arduinoHoistingData.hoistingQueue.put(output)
         logging.info("Toggling hammer time")
 
     def automate(self):
         command = str(CommandType.AUTOMATE.value)
-        output = command + ";"
+        output = command + ";"+ "\n"
         self.arduinoHoistingData.hoistingQueue.put(output)
         logging.info("Initiazing atuomated drilling...")
     def getWOB(self):
@@ -201,9 +201,13 @@ class Hoisting:
     def calcMSE(self):
         if self.calcROP15s() == 0:
             MSE = 0
-        else:         
-            rotData = self.arduinoRotationData.getRotationSensorData()
-            MSE = ((4*(self.getWOB())*9.8066500286389))/(math.pi*0.0286**2) + ((4*rotData["torqueMotor"]*rotData["measuredRPM"])/(math.pi*self.calcROP15s()*0.0286**2))
+        else:
+            try:         
+                rotData = self.arduinoRotationData.getRotationSensorData()
+                MSE = ((4*(self.getWOB())/((math.pi*0.028575**2))) + (2*math.pi*rotData["torqueMotor"]*rotData["measuredRPM"]/60)/(((math.pi/4)*(0.028575**2))*self.calcROP15s()))
+                # MSE = ((4*(self.getWOB())*9.8066500286389))/(math.pi*0.0286**2) + ((4*rotData["torqueMotor"]*rotData["measuredRPM"])/(math.pi*self.calcROP15s()*0.0286**2))
+            except:
+                MSE = 0        
         return MSE
 
     def calcUCS(self):

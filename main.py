@@ -41,7 +41,7 @@ coordinationSystem = Coordinator.Coordination(hoistingSystem,rotationSystem,circ
 #Gets data and triggers the plot
 class GetData(QThread):
     dataChanged = pyqtSignal(float,float,float,float,float,float,float,float,
-        float, float, float, float,float,float,float,float,float,float,float,float,float)
+        float, float, float, float,float,float,float,float,float,float,float,float,float,float)
     def __init__(self, parent=None):
         QThread.__init__(self, parent)
         self.t = QTime()
@@ -49,6 +49,7 @@ class GetData(QThread):
         self.wait()
     def run(self):  
         self.t.start()
+        file = open("rop.csv","w+") 
         while True:
             #Get the dictonarys from the arduinoData module
             hSensorData = t1.getHoistingSensorData()
@@ -68,7 +69,7 @@ class GetData(QThread):
             Z3 = hSensorData["z3"]
             sumZ = hSensorData["sumZ"]
             ROP_15s = (hoistingSystem.calcROP15s())/15
-            
+            file.write(str(ROP_15s) + "\n")
             ROP_3m = (hoistingSystem.calcROP3m())/180
             # 3. degree polynomial Q = (-72.831*pressure**3) + (499.29*pressure**2) - (1124.5*pressure) + 842.08
             # 2. degree polynomial Q = (-19.109*pressure**2) + (95.095*pressure) - 106.56
@@ -81,6 +82,7 @@ class GetData(QThread):
             
             MSE = hoistingSystem.calcMSE() 
             UCS = hoistingSystem.calcUCS()
+            TVD = hSensorData["TVD"]
             torqueBit = 0 # must be updated here, and updated in hoistingSystem
             WOB = hoistingSystem.getWOB()
             dExponenet = hoistingSystem.calcDexponent()
@@ -94,11 +96,12 @@ class GetData(QThread):
             
 
             timeNow = float(self.t.elapsed())/1000
-            
+            if TVD == 0:
+                timeNow = 0
             #Sleeps to not overload the system
             time.sleep(0.1)
             #Sends the new data to the chart and labels in the HMI
-            self.dataChanged.emit(act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,
+            self.dataChanged.emit(TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,
                 sumZ,WOB,pressure,torqueMotor,RPM,vibration,MSE,UCS,torqueBit,dExponenet,timeNow) 
             #Triggers and updates the plot and labels
 
@@ -266,8 +269,14 @@ class ControlUI(QWidget,Drillbotics2018.Ui_C):
         mb.information(self,' ',"Automated drilling is terimated, restart the system for a new drilling process",  mb.Ok | mb.Cancel)
  
     
-    def updateLabels(self,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
+    def updateLabels(self,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
         WOB = float("{0:.2f}".format(WOB))
+        ROP_15s = float("{0:.4f}".format(ROP_15s))
+        ROP_3m = float("{0:.4f}".format(ROP_3m))
+        MSE = float("{0:.4f}".format(MSE))
+        UCS = float("{0:.4f}".format(UCS))
+
+        dExponenet = float("{0:.4f}".format(dExponenet))
         self.label_WOB.setText(str(WOB))
         self.label_Pressure.setText(str(Pressure))
         self.label_Topdrive_Torque.setText(str(Torque))
@@ -287,6 +296,8 @@ class ControlUI(QWidget,Drillbotics2018.Ui_C):
         self.label_Act1StepCount.setText(str(act1))
         self.label_Act1StepCount.setText(str(act2))
         self.label_Act1StepCount.setText(str(act3))
+        self.Depthtracker.display(TVD)
+        self.Depthtracker_2.display(timeNow)
     
     
 
@@ -310,7 +321,7 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         self.time = []
         self.WOB = []
         self.MSE = []
-
+        self.ROP = []
         #Init the RPM plot
         layoutRPM = QHBoxLayout()
         
@@ -341,19 +352,19 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         self.p2.getAxis('right').setLabel('RPM', color='#0000ff')
 
         #Init the Vibration plot
-        layoutVibration = QHBoxLayout()
+        layoutROP = QHBoxLayout()
         
-        self.vibrationPlot = pg.PlotWidget()
-        layoutVibration.addWidget(self.vibrationPlot)
-        self.graphicsView_3.setLayout(layoutVibration)
+        self.ROPPlot = pg.PlotWidget()
+        layoutROP.addWidget(self.ROPPlot)
+        self.graphicsView_3.setLayout(layoutROP)
 
         
-        self.p3 = self.vibrationPlot.plotItem
-        self.p3.setLabels(left='Vibration',bottom="Time[seconds]")
-        self.p3.showGrid(x = True, y = True, alpha = 0.4)   
-        self.vibrationCurve = self.p3.plot()
-        self.vibrationCurve.setPen(pg.mkPen(color="#fff000", width=2))
-        self.p3.getAxis('right').setLabel('Vibration', color='#0000ff')
+        self.p3 = self.ROPPlot.plotItem
+        self.p3.setLabels(left='ROP',bottom="Time[seconds]")
+        self.p3.showGrid(x = True, y = True, alpha = 0.5)   
+        self.ROPCurve = self.p3.plot()
+        self.ROPCurve.setPen(pg.mkPen(color="#fff000", width=2))
+        self.p3.getAxis('right').setLabel('ROP', color='#0000ff')
 
         #Init the WOB plot
         layoutWOB = QHBoxLayout()
@@ -401,13 +412,13 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         self.p6.getAxis('right').setLabel('MSE', color='#0000ff')
 
     #When called, push new data in the list of data and updates graph
-    def updateGraph(self,act1,act2,act,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
+    def updateGraph(self,TVD,act1,act2,act,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
         if len(self.RPM) < 200:
             self.RPM.append(RPM)
             self.WOB.append(WOB)
             self.pressure.append(Pressure)
             self.torque.append(Torque)
-            self.vibration.append(Vibration)
+            self.ROP.append(ROP_15s)
             self.time.append(timeNow)
             self.MSE.append(Q)
         else:
@@ -415,13 +426,13 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
             self.WOB = self.WOB[1:] + [WOB]
             self.pressure = self.pressure[1:] + [Pressure]
             self.torque = self.torque[1:] + [Torque]
-            self.vibration = self.vibration[1:] + [Vibration]
+            self.ROP = self.ROP[1:] + [ROP_15s]
             self.MSE = self.MSE[1:] + [Q]
             self.time = self.time[1:] + [timeNow]
 
         self.RPMCurve.setData(self.time,self.RPM)
         self.torqueCurve.setData(self.time,self.torque)
-        self.vibrationCurve.setData(self.time, self.vibration)
+        self.ROPCurve.setData(self.time, self.ROP)
         self.WOBCurve.setData(self.time, self.WOB)
         self.PressureCurve.setData(self.time,self.pressure)
         self.MSECurve.setData(self.time,self.MSE)
