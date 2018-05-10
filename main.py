@@ -271,12 +271,12 @@ class ControlUI(QWidget,Drillbotics2018.Ui_C):
     
     def updateLabels(self,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
         WOB = float("{0:.2f}".format(WOB))
-        ROP_15s = float("{0:.4f}".format(ROP_15s))
-        ROP_3m = float("{0:.4f}".format(ROP_3m))
-        MSE = float("{0:.4f}".format(MSE))
-        UCS = float("{0:.4f}".format(UCS))
+        ROP_15s = float("{0:.2f}".format(ROP_15s))
+        ROP_3m = float("{0:.2f}".format(ROP_3m))
+        MSE = float("{0:.2f}".format(MSE))
+        UCS = float("{0:.2f}".format(UCS))
 
-        dExponenet = float("{0:.4f}".format(dExponenet))
+        dExponenet = float("{0:.2f}".format(dExponenet))
         self.label_WOB.setText(str(WOB))
         self.label_Pressure.setText(str(Pressure))
         self.label_Topdrive_Torque.setText(str(Torque))
