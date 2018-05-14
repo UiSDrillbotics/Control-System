@@ -12,6 +12,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QThread,pyqtSignal,QTime
 from PyQt5.QtWidgets import QApplication, QMainWindow
 import Drillbotics2018
+import glob
 
 import Hoisting
 import Circulation
@@ -40,7 +41,7 @@ coordinationSystem = Coordinator.Coordination(hoistingSystem,rotationSystem,circ
 
 #Gets data and triggers the plot
 class GetData(QThread):
-    dataChanged = pyqtSignal(float,float,float,float,float,float,float,float,
+    dataChanged = pyqtSignal(float,float,float,float,float,float,float,float,float,
         float, float, float, float,float,float,float,float,float,float,float,float,float,float)
     def __init__(self, parent=None):
         QThread.__init__(self, parent)
@@ -82,7 +83,7 @@ class GetData(QThread):
             
             MSE = hoistingSystem.calcMSE() 
             UCS = hoistingSystem.calcUCS()
-            TVD = hSensorData["TVD"]
+            TVD = hSensorData["TVD"]/1000
             torqueBit = 0 # must be updated here, and updated in hoistingSystem
             WOB = hoistingSystem.getWOB()
             dExponenet = hoistingSystem.calcDexponent()
@@ -93,7 +94,7 @@ class GetData(QThread):
             act3 = hSensorData["stepperArduinoPos3"]
             
             vibration = 0
-            
+            velocity = hoistingSystem.velocity()
 
             timeNow = float(self.t.elapsed())/1000
             if TVD == 0:
@@ -101,7 +102,7 @@ class GetData(QThread):
             #Sleeps to not overload the system
             time.sleep(0.1)
             #Sends the new data to the chart and labels in the HMI
-            self.dataChanged.emit(TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,
+            self.dataChanged.emit(velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,
                 sumZ,WOB,pressure,torqueMotor,RPM,vibration,MSE,UCS,torqueBit,dExponenet,timeNow) 
             #Triggers and updates the plot and labels
 
@@ -143,6 +144,12 @@ class ControlUI(QWidget,Drillbotics2018.Ui_C):
         if sys.platform.startswith('win'):
             import serial.tools.list_ports_windows
             ports = serial.tools.list_ports_windows.comports()
+        elif sys.platform.startswith('linux'):
+            import serial.tools.list_ports_linux
+            
+            ports = serial.tools.list_ports_linux.comports()
+            #print(temp_list)
+            
         else:
             import serial.tools.list_ports_osx
             ports = serial.tools.list_ports_osx.comports()
@@ -151,9 +158,9 @@ class ControlUI(QWidget,Drillbotics2018.Ui_C):
         for element in ports:
             connectedPorts.append(str(element.device))
         #Populates the comboboxes with connected ports
-        self.comboBox_Rotation.addItems(["COM5"]) # should be (connectedPorts) by default
-        self.comboBox_Circulation.addItems(["COM4"]) # should be (connectedPorts) by default
-        self.comboBox_Hoisting.addItems(["COM3"]) # should be (connectedPorts) by default
+        self.comboBox_Rotation.addItems(['/dev/ttyACM0']) # should be (connectedPorts) by default
+        self.comboBox_Circulation.addItems(['/dev/ttyACM1']) # should be (connectedPorts) by default
+        self.comboBox_Hoisting.addItems(['/dev/ttyACM2']) # should be (connectedPorts) by default
 
         #Populates Accuator combobox
         self.comboBox_Actuator.addItems(["All","1","2","3"])
@@ -269,20 +276,20 @@ class ControlUI(QWidget,Drillbotics2018.Ui_C):
         mb.information(self,' ',"Automated drilling is terimated, restart the system for a new drilling process",  mb.Ok | mb.Cancel)
  
     
-    def updateLabels(self,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
+    def updateLabels(self,velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
         WOB = float("{0:.2f}".format(WOB))
         ROP_15s = float("{0:.2f}".format(ROP_15s))
         ROP_3m = float("{0:.2f}".format(ROP_3m))
         MSE = float("{0:.2f}".format(MSE))
         UCS = float("{0:.2f}".format(UCS))
-
+        Q = float("{0:.2f}".format(Q))
+        velocity = float("{0:.2f}".format(velocity))
         dExponenet = float("{0:.2f}".format(dExponenet))
         self.label_WOB.setText(str(WOB))
         self.label_Pressure.setText(str(Pressure))
         self.label_Topdrive_Torque.setText(str(Torque))
         self.label_RPM.setText(str(RPM))
-        self.label_Axial_Vibration.setText(str(Vibration))
-        self.label_MSE.setText(str(Q))
+        self.label_Flow_Rate_Q.setText(str(Q))
         self.label_LoadCell_Z1.setText(str(int(Z1)))
         self.label_LoadCell_Z2.setText(str(int(Z2)))
         self.label_LoadCell_Z3.setText(str(int(Z3)))
@@ -291,13 +298,16 @@ class ControlUI(QWidget,Drillbotics2018.Ui_C):
         self.label_ROP3.setText(str(ROP_3m))
         self.label_Height_Sensor.setText(str(Height))
         self.label_UCS.setText(str(UCS))
-        #self.label_MSE.setText(str(MSE))
+        self.label_MSE.setText(str(MSE))
         self.label_d_exponent.setText(str(dExponenet))
         self.label_Act1StepCount.setText(str(act1))
-        self.label_Act1StepCount.setText(str(act2))
-        self.label_Act1StepCount.setText(str(act3))
+        self.label_Act2StepCount.setText(str(act2))
+        self.label_Act3StepCount.setText(str(act3))
         self.Depthtracker.display(TVD)
         self.Depthtracker_2.display(timeNow)
+        self.label_Velocity.setText(str(velocity))
+        self.label_StepCounter.setText(str(act1))
+
     
     
 
@@ -412,7 +422,7 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         self.p6.getAxis('right').setLabel('MSE', color='#0000ff')
 
     #When called, push new data in the list of data and updates graph
-    def updateGraph(self,TVD,act1,act2,act,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
+    def updateGraph(self,velocity,TVD,act1,act2,act,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
         if len(self.RPM) < 200:
             self.RPM.append(RPM)
             self.WOB.append(WOB)

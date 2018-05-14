@@ -224,3 +224,7 @@ class Hoisting:
             except:
                 DEXP = 0
         return DEXP
+
+    def velocity(self):
+        velocity = self.calcROP15s() *3.6
+        return velocity

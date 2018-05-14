@@ -1843,7 +1843,7 @@ class Ui_C(object):
         self.label.setText(_translate("C", "<html><head/><body><p><img src=\":C:/Users/TeamUiS/Desktop/Logo-resized.png\"/></p></body></html>"))
         self.label_91.setText(_translate("C", "University of Stavanger, IRIS, AkerBP"))
         self.label_Velocity.setText(_translate("C", "0"))
-        self.label_31.setText(_translate("C", "Velocity [mm/s]"))
+        self.label_31.setText(_translate("C", "Velocity [m/h]"))
         self.label_32.setText(_translate("C", "3m.ROP [mm/s]"))
         self.label_ROP3.setText(_translate("C", "0"))
         self.label_RPM.setText(_translate("C", "0"))
@@ -1924,7 +1924,7 @@ class Ui_C(object):
         self.label_100.setText(_translate("C", "30cm"))
         self.label_101.setText(_translate("C", "20cm"))
         self.label_102.setText(_translate("C", "10cm"))
-        self.label_Rotating_2.setText(_translate("C", "Duration [min]"))
+        self.label_Rotating_2.setText(_translate("C", "Duration [s]"))
         self.label_104.setText(_translate("C", "Current Formation"))
         self.textBrowser_CurrentFormation.setHtml(_translate("C", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
@@ -1982,6 +1982,6 @@ class Ui_C(object):
         self.pushButton_WOB_Ctrl_off.setText(_translate("C", "WOB Control off"))
         self.pushButton_WOB_ctrl_on.setText(_translate("C", "WOB Control on"))
 
-import Logo_rc
-import bit_rc
-import well_rc
+#import Logo_rc
+#import bit_rc
+#import well_rc

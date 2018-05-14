@@ -1,4 +1,6 @@
-#include <PID\PID_v1.h>
+#include <PID_v1.h>
+
+
 
 enum BrakeStatus {
 	OPENED = 2,
@@ -734,15 +736,17 @@ void loop()
 			if (!telemetry_on) {
 				Serial.print("pid-err: ");
 				Serial.println(PIDerror);
+				Serial.print("WOB COntroller Output: ");
+				Serial.println(WOBControllerOutput);
 			}
 			if (PIDerror < -1000) {
 				HoistingDirectionCommand dir = HoistingDirectionCommand::UP;
-				int speed = 900;
+				int speed = 900; 
 				int allActuators = 4;
 				double StepOutput = abs(WOBControllerOutput);
 				if (StepOutput > 0.04)
 				{
-					StepOutput = 0.04;
+				 	StepOutput = 0.04;
 				}
 				moveDistance(StepOutput, dir, speed, allActuators);
 			}
@@ -753,7 +757,7 @@ void loop()
 				double StepOutput = abs(WOBControllerOutput);
 				if (StepOutput > 0.04) // was 1.0
 				{
-					StepOutput = 0.04; // was 1.0
+				 	StepOutput = 0.04; // was 1.0
 				}
 				moveDistance(StepOutput, dir, speed, allActuators);
 
@@ -771,8 +775,9 @@ void loop()
 		int vibrationDamageCounter = 0;
 		//int vibrationNormalLimit = ((WOBSetpoint * 1.5) / 0.101971621) * (3.138 / 200) * (4096 / 3.3);
 		int vibrationNormalLimit = WOBSetpoint_int * 2.0; //already being sent as an int
-		int vibrationDamageLimit = (10.0 / 0.101971621) * (3.138 / 200) * (4096 / 3.3);
-		for (int i = 0; i < 49; i++)
+		//int vibrationDamageLimit = (10.0 / 0.101971621) * (3.138 / 200) * (4096 / 3.3);
+		int vibrationDamageLimit = WOBSetpoint_int * 4.0;
+			for (int i = 0; i < 49; i++)
 		{
 			if (WOBLog[i] > vibrationNormalLimit)
 			{
@@ -1045,11 +1050,12 @@ void ReceiveData()
 			OpenBrakes();
 			delay(500);
 			taggedBottom = false;
-			int position1 = 5;
-			int position2 = 5;
-			int position3 = 5;
+			int position1 = act[0].getStepCounter();
+			int position2 = act[1].getStepCounter();
+			int position3 = act[2].getStepCounter();
+			int initialPos = position1 + position2 + position3;
 			moveDistance(5.0, HoistingDirectionCommand::UP, 500, 4); //raise up so we know we aren't touching the bottom
-			while (position1 + position2 + position3 > 0)
+			while ((position1 + position2 + position3)  > 1)
 			{
 				//need to detect load cells to reset age counter
 				for (int i = 0; i < 3; i++) {
@@ -1066,7 +1072,10 @@ void ReceiveData()
 
 				//wait for it to finish moving
 				//put sendData loop in here to send data every so often so we aren't blind
+				Serial.println(initialPos);
+				Serial.println((position1 + position2 + position3));
 			}
+			Serial.println("Out");
 			delay(1000); //delay just to disipate the energy from stopping
 						 //record hook load
 			for (int sample = 0; sample < 2 * MEDIAN_WINDOW_SIZE; sample++) {
@@ -1082,8 +1091,8 @@ void ReceiveData()
 			sendData();
 			delay(100);
 			//now go tag bottom
-			kp = 0.0001;
-			ki = 0.0001;
+			kp = 0.00000001;
+			ki = 0.0000;
 			kd = 0.0;
 			WOBControl.SetTunings(kp, ki, kd);
 			WOBSetpoint_int = 5.0;
@@ -1099,7 +1108,7 @@ void ReceiveData()
 			break;
 		}
 
-		//Serial.println("Receive Data Success!!");
+		Serial.println("Receive Data Success!!");
 		cmdDistance = tmpdistance;
 		cmdDirection = tmpdirection;
 		cmdSpeed = tmpspeed;
@@ -1150,6 +1159,7 @@ void calibratePosition()
 
 void tagBottom()
 {
+	Serial.println("In");
 	taggedBottom = false;
 	int tagBottomCounter = 0;
 	int sendingDataCounter = 0;
@@ -1178,9 +1188,9 @@ void tagBottom()
 			int speed = 900;
 			int allActuators = 4;
 			double StepOutput = abs(WOBControllerOutput);
-			if (StepOutput > 1.0)
+			if (StepOutput > 0.5)// was 1 mm
 			{
-				StepOutput = 1.0;
+				StepOutput = 0.5;//was 1 mm
 			}
 			moveDistance(StepOutput, dir, speed, allActuators);
 			sumZ_numerator = 0;
@@ -1202,7 +1212,7 @@ void tagBottom()
 						act[i].resetSteppers();
 					}
 					WOBControlenabled = false;
-					telemetry_on = true;
+					//telemetry_on = true;
 					Mode = Modes::TAGGEDBOTTOM;
 					sendData();
 				}
@@ -1359,8 +1369,9 @@ void sendData()
 	Serial.write("y");
 	Serial.print(rop3m);
 	Serial.write("y");
-	Serial.println("z");
-
+	Serial.print("z"); // was: Serial.println("z");
+	Serial.write("WOB_output: "); // delete if unecessary
+	Serial.println(WOBControllerOutput); // delete if unecessary
 }
 
 // float sum = 0;
