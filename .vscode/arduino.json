@@ -1,5 +1,0 @@
-{
-    "board": "arduino:sam:arduino_due_x_dbg",
-    "port": "COM7",
-    "sketch": "Arduino/Datagenerator.ino"
-}
