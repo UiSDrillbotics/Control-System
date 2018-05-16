@@ -207,7 +207,7 @@ class ControlUI(QWidget,Drillbotics2018.Ui_C):
         
     def moveHoisting(self):
         actuator = self.comboBox_Actuator.currentText()
-        distance = str(int(self.doubleSpinBox_Distance.value()))
+        distance = str(float(self.doubleSpinBox_Distance.value()))
         stepperDelay = str(int(self.spinBox_Stepper_Delay.value()))
         direction = self.comboBox_Direction.currentText()
         if actuator != "All":
