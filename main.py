@@ -13,14 +13,114 @@ from PyQt5.QtCore import QThread,pyqtSignal,QTime
 from PyQt5.QtWidgets import QApplication, QMainWindow
 import Drillbotics2018
 import glob
+import math
 
 import Hoisting
 import Circulation
 import Rotation
 import Coordinator
 
+from dataManager import DataManager
+
+dataManager = DataManager()
+dataManager.initDatabase()
+   
+    
+dataManager.connect('logger')
+if dataManager.isConnected == True:
+    dataManager.createTable('RPM')
+    dataManager.createTable('WOB')
+    dataManager.createTable('ROP_15s_avg')
+    dataManager.createTable('ROP_3m_avg')
+    dataManager.createTable('Velocity')
+    dataManager.createTable('Top_Drive_Torque')
+    dataManager.createTable('Bit_Torque')
+    dataManager.createTable('Pressure')
+    dataManager.createTable('Flow_Rate')
+    dataManager.createTable('Height_Sensor')
+    dataManager.createTable('Act_Stepcounter_1')
+    dataManager.createTable('Act_Stepcounter_2')
+    dataManager.createTable('Act_Stepcounter_3')
+    dataManager.createTable('Loadcell_z1')
+    dataManager.createTable('Loadcell_z2')
+    dataManager.createTable('Loadcell_z3')
+    dataManager.createTable('TVD')
+    dataManager.createTable('Time')
+    dataManager.createTable('MSE')
+    dataManager.createTable('UCS')
+    dataManager.createTable('d_exponent')
 
 
+
+def pushToDatabase():
+    while True:
+        #Get the dictonarys from the arduinoData module
+        hSensorData = t1.getHoistingSensorData()
+        cSensorData = t2.getCirculationSensorData()
+        rSensorData = t3.getRotationSensorData()
+        #Init each variable with the correspondable dictonary value
+        RPM = rSensorData["measuredRPM"]
+        if RPM <=0:
+            RPM = 0
+        torqueMotor = rSensorData["torqueMotor"]
+        #torqueSensor = rSensorData["torqueSensor"]
+        pressure = cSensorData["pressure"]
+
+
+        Z1 = hSensorData["z1"]
+        Z2 = hSensorData["z2"]
+        Z3 = hSensorData["z3"]
+        #sumZ = hSensorData["sumZ"]
+        ROP_15s = (hoistingSystem.calcROP15s())/15
+
+        ROP_3m = (hoistingSystem.calcROP3m())/180
+        # 3. degree polynomial Q = (-72.831*pressure**3) + (499.29*pressure**2) - (1124.5*pressure) + 842.08
+        # 2. degree polynomial Q = (-19.109*pressure**2) + (95.095*pressure) - 106.56
+        
+        if circulationSystem.pumpOn == False:
+            Q = 0
+
+        else:
+            Q = (3.7417*pressure) + 0.7122
+        
+        MSE = hoistingSystem.calcMSE() 
+        UCS = hoistingSystem.calcUCS()
+        TVD = hSensorData["TVD"]/1000
+        torqueBit = 0 # must be updated here, and updated in hoistingSystem
+        WOB = hoistingSystem.getWOB()
+        dExponenet = hoistingSystem.calcDexponent()
+        #Height = hSensorData["heightSensor"]
+
+        act1 = hSensorData["stepperArduinoPos1"]
+        act2 = hSensorData["stepperArduinoPos2"]
+        act3 = hSensorData["stepperArduinoPos3"]
+        
+        #vibration = 0
+        velocity = hoistingSystem.velocity()
+
+
+        dataManager.pushIntoSqlBuffer('RPM',RPM)
+        dataManager.pushIntoSqlBuffer('WOB',WOB)
+        dataManager.pushIntoSqlBuffer('ROP_15s_avg',ROP_15s)
+        dataManager.pushIntoSqlBuffer('ROP_3m_avg',ROP_3m)
+        dataManager.pushIntoSqlBuffer('Velocity',velocity)
+        dataManager.pushIntoSqlBuffer('Top_Drive_Torque',torqueMotor)
+        dataManager.pushIntoSqlBuffer('Bit_Torque',torqueBit)
+        dataManager.pushIntoSqlBuffer('Pressure',pressure)
+        dataManager.pushIntoSqlBuffer('Flow_Rate', Q)
+        dataManager.pushIntoSqlBuffer('Height_Sensor',0)
+        dataManager.pushIntoSqlBuffer('Act_Stepcounter_1',act1)
+        dataManager.pushIntoSqlBuffer('Act_Stepcounter_2',act2)
+        dataManager.pushIntoSqlBuffer('Act_Stepcounter_3',act3)
+        dataManager.pushIntoSqlBuffer('Loadcell_z1',Z1)
+        dataManager.pushIntoSqlBuffer('Loadcell_z2',Z2)
+        dataManager.pushIntoSqlBuffer('Loadcell_z3',Z3)
+        dataManager.pushIntoSqlBuffer('TVD',TVD)
+        dataManager.pushIntoSqlBuffer('MSE',MSE)
+        dataManager.pushIntoSqlBuffer('UCS',UCS)
+        dataManager.pushIntoSqlBuffer('d_exponent',dExponenet)
+
+        time.sleep(0.001)
 #Lock for each arduino data storage
 hoistigLock = threading.Lock()
 circulationLock = threading.Lock()
@@ -50,7 +150,6 @@ class GetData(QThread):
         self.wait()
     def run(self):  
         self.t.start()
-        file = open("rop.csv","w+") 
         while True:
             #Get the dictonarys from the arduinoData module
             hSensorData = t1.getHoistingSensorData()
@@ -70,7 +169,7 @@ class GetData(QThread):
             Z3 = hSensorData["z3"]
             sumZ = hSensorData["sumZ"]
             ROP_15s = (hoistingSystem.calcROP15s())/15
-            file.write(str(ROP_15s) + "\n")
+
             ROP_3m = (hoistingSystem.calcROP3m())/180
             # 3. degree polynomial Q = (-72.831*pressure**3) + (499.29*pressure**2) - (1124.5*pressure) + 842.08
             # 2. degree polynomial Q = (-19.109*pressure**2) + (95.095*pressure) - 106.56
@@ -101,6 +200,7 @@ class GetData(QThread):
                 timeNow = 0
             #Sleeps to not overload the system
             time.sleep(0.1)
+          
             #Sends the new data to the chart and labels in the HMI
             self.dataChanged.emit(velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,
                 sumZ,WOB,pressure,torqueMotor,RPM,vibration,MSE,UCS,torqueBit,dExponenet,timeNow) 
@@ -188,6 +288,9 @@ class ControlUI(QWidget,Drillbotics2018.Ui_C):
         t1.start()
         t2.start()
         t3.start()
+        dataBaseThread = threading.Thread(target=pushToDatabase)
+        dataBaseThread.daemon = True
+        dataBaseThread.start()
         self.pushButton_OpenPorts.setDisabled(True)
     #Method for reading the selected RPM and send it to the Rotation module
     def setRPM(self):
@@ -449,6 +552,7 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         
         
 
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     ContSys = ControlUI()
@@ -456,4 +560,3 @@ if __name__ == "__main__":
     sys.exit(app.exec_())
    
   
-    
