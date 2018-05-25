@@ -1,4 +1,4 @@
-//Add the SPI library so we can communicate with the ADXL355 sensor
+// Add the SPI library so we can communicate with the ADXL355 sensor
 #include <SPI.h>
 #include "ADXL355.h"
 
