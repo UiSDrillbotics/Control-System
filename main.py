@@ -22,6 +22,7 @@ import Rotation
 import Coordinator
 
 import database
+from Classifier import Classify
 
 oldTVD = 0
 oldWOBset = 0
@@ -46,9 +47,12 @@ coordinationSystem = Coordinator.Coordination(hoistingSystem,rotationSystem,circ
 #Initiazises the database 
 db = database.Database(t1,t3,t2,hoistingSystem,circulationSystem,rotationSystem) 
 db.initDb()
+
+#Init the classifier
+classifier = Classify()
 ##Gets data and triggers the plot
 class GetData(QThread):
-    dataChanged = pyqtSignal(float,float,float,float,float,float,float,float,float,float,float,
+    dataChanged = pyqtSignal(str,float,float,float,float,float,float,float,float,float,float,float,
         float, float, float, float,float,float,float,float,float,float,float,float,float,float)
     def __init__(self, parent=None):
         QThread.__init__(self, parent)
@@ -74,6 +78,8 @@ class GetData(QThread):
             Z1 = hSensorData["z1"]
             Z2 = hSensorData["z2"]
             Z3 = hSensorData["z3"]
+            rock = classifier.predict(Z1)
+            rock = str(rock)
             sumZ = hSensorData["sumZ"]
             ROP_15s = (hoistingSystem.calcROP15s())/15
 
@@ -114,7 +120,7 @@ class GetData(QThread):
             time.sleep(0.1)
           
             #Sends the new data to the chart and labels in the HMI
-            self.dataChanged.emit(wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,
+            self.dataChanged.emit(rock,wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,
                 sumZ,WOB,pressure,torqueMotor,RPM,vibration,MSE,UCS,torqueBit,dExponenet,timeNow) 
             #Triggers and updates the plot and labels
 
@@ -295,7 +301,7 @@ class ControlUI(QWidget,Drillbotics2018.Ui_C):
         mb.information(self,' ',"Automated drilling is terimated, restart the system for a new drilling process",  mb.Ok | mb.Cancel)
  
     
-    def updateLabels(self,wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
+    def updateLabels(self,rock,wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
         WOB = float("{0:.2f}".format(WOB))
         ROP_15s = float("{0:.2f}".format(ROP_15s))
         ROP_3m = float("{0:.2f}".format(ROP_3m))
@@ -327,6 +333,7 @@ class ControlUI(QWidget,Drillbotics2018.Ui_C):
         self.Depthtracker_2.display(timeNow)
         self.label_Velocity.setText(str(velocity))
         self.label_StepCounter.setText(str(act1))
+        self.textBrowser_CurrentFormation.setPlainText(rock)
 
         if TVD >= 0 and TVD < 10:
             if not self.radioButton.isChecked():
@@ -559,7 +566,7 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         self.p6.getAxis('right').setLabel('RPM', color='#0000ff')
 
 
-    def updateLabels(self,wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
+    def updateLabels(self,rock,wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
         WOB = float("{0:.2f}".format(WOB))
         ROP_15s = float("{0:.2f}".format(ROP_15s))
         ROP_3m = float("{0:.2f}".format(ROP_3m))
@@ -801,7 +808,7 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         self.p6.getAxis('right').setLabel('MSE', color='#0000ff')
 
     #When called, push new data in the list of data and updates graph
-    def updateGraph(self,wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
+    def updateGraph(self,rock,wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
         if len(self.RPM) < 50:
             self.RPM.append(RPM)
             self.WOB.append(WOB)
