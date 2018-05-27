@@ -46,9 +46,9 @@ class Ui_Form(object):
         self.gridLayout.addWidget(self.graphicsView_6, 2,1, 1, 1)
 
 
-        self.graphicsView_7 = QtWidgets.QGraphicsView(Form)
-        self.graphicsView_7.setObjectName("graphicsView_7")
-        self.gridLayout.addWidget(self.graphicsView_7, 0,2, 3, 2)
+        #self.graphicsView_7 = QtWidgets.QGraphicsView(Form)
+        #self.graphicsView_7.setObjectName("graphicsView_7")
+        #self.gridLayout.addWidget(self.graphicsView_7, 0,2, 3, 2)
 
 
    

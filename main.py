@@ -5,6 +5,7 @@ import ArduinoData
 import time
 import sys
 import pyqtdesign
+import VisualizationGUI
 import controls
 import pyqtgraph as pg
 from PyQt5.QtWidgets import *
@@ -20,107 +21,11 @@ import Circulation
 import Rotation
 import Coordinator
 
-from dataManager import DataManager
+import database
 
-dataManager = DataManager()
-dataManager.initDatabase()
-   
-    
-dataManager.connect('logger')
-if dataManager.isConnected == True:
-    dataManager.createTable('RPM')
-    dataManager.createTable('WOB')
-    dataManager.createTable('ROP_15s_avg')
-    dataManager.createTable('ROP_3m_avg')
-    dataManager.createTable('Velocity')
-    dataManager.createTable('Top_Drive_Torque')
-    dataManager.createTable('Bit_Torque')
-    dataManager.createTable('Pressure')
-    dataManager.createTable('Flow_Rate')
-    dataManager.createTable('Height_Sensor')
-    dataManager.createTable('Act_Stepcounter_1')
-    dataManager.createTable('Act_Stepcounter_2')
-    dataManager.createTable('Act_Stepcounter_3')
-    dataManager.createTable('Loadcell_z1')
-    dataManager.createTable('Loadcell_z2')
-    dataManager.createTable('Loadcell_z3')
-    dataManager.createTable('TVD')
-    dataManager.createTable('Time')
-    dataManager.createTable('MSE')
-    dataManager.createTable('UCS')
-    dataManager.createTable('d_exponent')
-
-
-
-def pushToDatabase():
-    while True:
-        #Get the dictonarys from the arduinoData module
-        hSensorData = t1.getHoistingSensorData()
-        cSensorData = t2.getCirculationSensorData()
-        rSensorData = t3.getRotationSensorData()
-        #Init each variable with the correspondable dictonary value
-        RPM = rSensorData["measuredRPM"]
-        if RPM <=0:
-            RPM = 0
-        torqueMotor = rSensorData["torqueMotor"]
-        #torqueSensor = rSensorData["torqueSensor"]
-        pressure = cSensorData["pressure"]
-
-
-        Z1 = hSensorData["z1"]
-        Z2 = hSensorData["z2"]
-        Z3 = hSensorData["z3"]
-        #sumZ = hSensorData["sumZ"]
-        ROP_15s = (hoistingSystem.calcROP15s())/15
-
-        ROP_3m = (hoistingSystem.calcROP3m())/180
-        # 3. degree polynomial Q = (-72.831*pressure**3) + (499.29*pressure**2) - (1124.5*pressure) + 842.08
-        # 2. degree polynomial Q = (-19.109*pressure**2) + (95.095*pressure) - 106.56
-        
-        if circulationSystem.pumpOn == False:
-            Q = 0
-
-        else:
-            Q = (3.7417*pressure) + 0.7122
-        
-        MSE = hoistingSystem.calcMSE() 
-        UCS = hoistingSystem.calcUCS()
-        TVD = hSensorData["TVD"]/1000
-        torqueBit = 0 # must be updated here, and updated in hoistingSystem
-        WOB = hoistingSystem.getWOB()
-        dExponenet = hoistingSystem.calcDexponent()
-        #Height = hSensorData["heightSensor"]
-
-        act1 = hSensorData["stepperArduinoPos1"]
-        act2 = hSensorData["stepperArduinoPos2"]
-        act3 = hSensorData["stepperArduinoPos3"]
-        
-        #vibration = 0
-        velocity = hoistingSystem.velocity()
-
-
-        dataManager.pushIntoSqlBuffer('RPM',RPM)
-        dataManager.pushIntoSqlBuffer('WOB',WOB)
-        dataManager.pushIntoSqlBuffer('ROP_15s_avg',ROP_15s)
-        dataManager.pushIntoSqlBuffer('ROP_3m_avg',ROP_3m)
-        dataManager.pushIntoSqlBuffer('Velocity',velocity)
-        dataManager.pushIntoSqlBuffer('Top_Drive_Torque',torqueMotor)
-        dataManager.pushIntoSqlBuffer('Bit_Torque',torqueBit)
-        dataManager.pushIntoSqlBuffer('Pressure',pressure)
-        dataManager.pushIntoSqlBuffer('Flow_Rate', Q)
-        dataManager.pushIntoSqlBuffer('Height_Sensor',0)
-        dataManager.pushIntoSqlBuffer('Act_Stepcounter_1',act1)
-        dataManager.pushIntoSqlBuffer('Act_Stepcounter_2',act2)
-        dataManager.pushIntoSqlBuffer('Act_Stepcounter_3',act3)
-        dataManager.pushIntoSqlBuffer('Loadcell_z1',Z1)
-        dataManager.pushIntoSqlBuffer('Loadcell_z2',Z2)
-        dataManager.pushIntoSqlBuffer('Loadcell_z3',Z3)
-        dataManager.pushIntoSqlBuffer('TVD',TVD)
-        dataManager.pushIntoSqlBuffer('MSE',MSE)
-        dataManager.pushIntoSqlBuffer('UCS',UCS)
-        dataManager.pushIntoSqlBuffer('d_exponent',dExponenet)
-
-        time.sleep(0.001)
+oldTVD = 0
+oldWOBset = 0
+oldRPMset = 0
 #Lock for each arduino data storage
 hoistigLock = threading.Lock()
 circulationLock = threading.Lock()
@@ -138,10 +43,12 @@ circulationSystem = Circulation.Circulation(t2)
 rotationSystem = Rotation.Rotation(t3)
 coordinationSystem = Coordinator.Coordination(hoistingSystem,rotationSystem,circulationSystem,t1,t3,t2)
 
-
-#Gets data and triggers the plot
+#Initiazises the database 
+db = database.Database(t1,t3,t2,hoistingSystem,circulationSystem,rotationSystem) 
+db.initDb()
+##Gets data and triggers the plot
 class GetData(QThread):
-    dataChanged = pyqtSignal(float,float,float,float,float,float,float,float,float,
+    dataChanged = pyqtSignal(float,float,float,float,float,float,float,float,float,float,float,
         float, float, float, float,float,float,float,float,float,float,float,float,float,float)
     def __init__(self, parent=None):
         QThread.__init__(self, parent)
@@ -182,8 +89,8 @@ class GetData(QThread):
             
             MSE = hoistingSystem.calcMSE() 
             UCS = hoistingSystem.calcUCS()
-            TVD = hSensorData["TVD"]/1000
-            torqueBit = 0 # must be updated here, and updated in hoistingSystem
+            TVD = hSensorData["TVD"]/10
+            torqueBit = torqueMotor # must be updated here, and updated in hoistingSystem
             WOB = hoistingSystem.getWOB()
             dExponenet = hoistingSystem.calcDexponent()
             Height = hSensorData["heightSensor"]
@@ -195,14 +102,19 @@ class GetData(QThread):
             vibration = 0
             velocity = hoistingSystem.velocity()
 
-            timeNow = float(self.t.elapsed())/1000
+            timeNow = float(self.t.elapsed())/(1000*60)
             if TVD == 0:
                 timeNow = 0
+                #self.t = QTime()
+                self.t.start()
+
+            wobSetpoint = float(t1.WOBSetPoint)
+            rpmSetpoint =  float(rotationSystem.setPointRPM)
             #Sleeps to not overload the system
             time.sleep(0.1)
           
             #Sends the new data to the chart and labels in the HMI
-            self.dataChanged.emit(velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,
+            self.dataChanged.emit(wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,
                 sumZ,WOB,pressure,torqueMotor,RPM,vibration,MSE,UCS,torqueBit,dExponenet,timeNow) 
             #Triggers and updates the plot and labels
 
@@ -274,6 +186,8 @@ class ControlUI(QWidget,Drillbotics2018.Ui_C):
         #Init the advanced UI window the the same datathread as the controls window
         self.ui = GUI(self.dataThread)
         self.ui.show()
+        self.visGUI = VisGUI(self.dataThread)
+        self.visGUI.show()
 
     def getComPorts(self):
         
@@ -288,9 +202,8 @@ class ControlUI(QWidget,Drillbotics2018.Ui_C):
         t1.start()
         t2.start()
         t3.start()
-        dataBaseThread = threading.Thread(target=pushToDatabase)
-        dataBaseThread.daemon = True
-        dataBaseThread.start()
+        #Starts the database thread
+        db.start()
         self.pushButton_OpenPorts.setDisabled(True)
     #Method for reading the selected RPM and send it to the Rotation module
     def setRPM(self):
@@ -356,6 +269,9 @@ class ControlUI(QWidget,Drillbotics2018.Ui_C):
         
     def resetSteppers(self):
         hoistingSystem.resetSteppers()
+        t1.resetTVD()
+        global oldTVD
+        oldTVD  = -1.1
 
     def turnOnPump(self):
         
@@ -379,7 +295,7 @@ class ControlUI(QWidget,Drillbotics2018.Ui_C):
         mb.information(self,' ',"Automated drilling is terimated, restart the system for a new drilling process",  mb.Ok | mb.Cancel)
  
     
-    def updateLabels(self,velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
+    def updateLabels(self,wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
         WOB = float("{0:.2f}".format(WOB))
         ROP_15s = float("{0:.2f}".format(ROP_15s))
         ROP_3m = float("{0:.2f}".format(ROP_3m))
@@ -388,6 +304,7 @@ class ControlUI(QWidget,Drillbotics2018.Ui_C):
         Q = float("{0:.2f}".format(Q))
         velocity = float("{0:.2f}".format(velocity))
         dExponenet = float("{0:.2f}".format(dExponenet))
+
         self.label_WOB.setText(str(WOB))
         self.label_Pressure.setText(str(Pressure))
         self.label_Topdrive_Torque.setText(str(Torque))
@@ -411,7 +328,359 @@ class ControlUI(QWidget,Drillbotics2018.Ui_C):
         self.label_Velocity.setText(str(velocity))
         self.label_StepCounter.setText(str(act1))
 
+        if TVD >= 0 and TVD < 10:
+            if not self.radioButton.isChecked():
+                self.radioButton.toggle()
+        elif TVD >= 10 and TVD < 20:
+            if not self.radioButton_2.isChecked():
+                self.radioButton_2.toggle()
+        elif TVD >= 20 and TVD < 30:
+            if not self.radioButton_3.isChecked():
+                self.radioButton_3.toggle()
+        elif TVD >= 30 and TVD < 40:
+            if not self.radioButton_5.isChecked():
+                self.radioButton_5.toggle()
+        elif TVD >= 40 and TVD < 50:
+            if not self.radioButton_6.isChecked():
+                self.radioButton_6.toggle()
+        elif TVD >= 50 and TVD < 60:
+            if not self.radioButton_7.isChecked():
+                self.radioButton_7.toggle()
+        elif TVD >= 60:
+            if not self.radioButton_9.isChecked():
+                self.radioButton_9.toggle()
+        else:
+            pass
     
+    
+
+class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
+    def __init__(self,dataThread,parent=None):
+        QMainWindow.__init__(self,parent)
+        self.setupUi(self)
+        self.dataThread = dataThread
+        self.dataThread.dataChanged.connect(self.updateLabels)
+
+        self.initTVD = True        
+        self.oldTVD  = 0
+
+        #List of values that will be displayed in the graph
+        self.RPM = []
+        self.torque = []
+        self.bit_torque = []
+        self.pressure = []
+        self.TVD = []
+        self.WOB = []
+        self.MSE = []
+        self.ROP = []
+        self.UCS = []
+        self.wobSet = []
+        self.rpmSet = []
+
+        #Init the RPM plot
+        layoutRPM = QHBoxLayout()
+        
+        self.RPMPlot = pg.PlotWidget()
+        self.RPMPlot.setYRange(0, 60)
+        self.RPMPlot.setXRange(0,1500)
+        layoutRPM.addWidget(self.RPMPlot)
+        self.graphicsView_adv_RPM.setLayout(layoutRPM) # Places the plot in the graphisView from the desinger
+
+        self.p1 = self.RPMPlot.plotItem
+
+        self.p1.showGrid(x = True, y = True, alpha = 0.7)   
+        self.RPMCurve = self.p1.plot()
+        self.RPMCurve.setPen(pg.mkPen(color="#fff000", width=2))
+        self.RPMCurve.getViewBox().invertY(True)
+        
+        self.p1.getAxis('right').setLabel('RPM', color='#0000ff')
+
+        #Init the Torque plot
+        layoutTorque = QHBoxLayout()
+        
+        self.torquePlot = pg.PlotWidget()
+        self.torquePlot.setYRange(0, 60)
+        self.torquePlot.setXRange(0,10)
+        layoutTorque.addWidget(self.torquePlot)
+        self.graphicsView_adv_torque.setLayout(layoutTorque)
+
+        
+        self.p2 = self.torquePlot.plotItem
+  
+        self.p2.showGrid(x = True, y = True, alpha = 0.7)   
+        self.torqueCurve = self.p2.plot()
+        self.torqueCurve.setPen(pg.mkPen(color="#fff000", width=2))
+        self.torqueCurve.getViewBox().invertY(True)
+        self.p2.getAxis('right').setLabel('RPM', color='#0000ff')
+
+        #Init the ROP plot
+        layoutROP = QHBoxLayout()
+        
+        self.ROPPlot = pg.PlotWidget()
+        self.ROPPlot.setYRange(0, 60)
+        self.ROPPlot.setXRange(0,50)
+        layoutROP.addWidget(self.ROPPlot)
+        self.graphicsView_adv_ROP.setLayout(layoutROP)
+
+        
+        self.p3 = self.ROPPlot.plotItem
+
+        self.p3.showGrid(x = True, y = True, alpha = 0.7)   
+        self.ROPCurve = self.p3.plot()
+        self.ROPCurve.setPen(pg.mkPen(color="#fff000", width=2))
+        self.ROPCurve.getViewBox().invertY(True)
+        self.p3.getAxis('right').setLabel('ROP', color='#0000ff')
+
+        #Init the WOB plot
+        layoutWOB = QHBoxLayout()
+        
+        self.WOBPlot = pg.PlotWidget()
+        self.WOBPlot.setYRange(0, 60)
+        self.WOBPlot.setXRange(0,20)
+        layoutWOB.addWidget(self.WOBPlot)
+        self.graphicsView_adv_WOB.setLayout(layoutWOB)
+
+        
+        self.p4 = self.WOBPlot.plotItem
+ 
+        self.p4.showGrid(x = True, y = True, alpha = 0.7)   
+        self.WOBCurve = self.p4.plot()
+        self.WOBCurve.setPen(pg.mkPen(color="#fff000", width=2))
+        self.WOBCurve.getViewBox().invertY(True)
+        self.p4.getAxis('right').setLabel('WOB', color='#0000ff')
+
+        #Init the Pressure plot
+        layoutPressure = QHBoxLayout()
+        
+        self.PressurePlot = pg.PlotWidget()
+        self.PressurePlot.setYRange(0, 60)
+        self.PressurePlot.setXRange(0,5)
+        layoutPressure.addWidget(self.PressurePlot)
+        self.graphicsView_adv_Pressure.setLayout(layoutPressure)
+
+        
+        self.p5 = self.PressurePlot.plotItem
+ 
+        self.p5.showGrid(x = True, y = True, alpha = 0.7)   
+        self.PressureCurve = self.p5.plot()
+        self.PressureCurve.setPen(pg.mkPen(color="#fff000", width=2))
+        self.PressureCurve.getViewBox().invertY(True)
+        self.p5.getAxis('right').setLabel('Pressure', color='#0000ff')
+
+        #MSE Plot
+        layoutMSE = QHBoxLayout()
+        
+        self.MSEPlot = pg.PlotWidget()
+        self.MSEPlot.setYRange(0, 60)
+        self.MSEPlot.setXRange(0,500)
+        layoutMSE.addWidget(self.MSEPlot)
+        self.graphicsView_adv_MSE.setLayout(layoutMSE)
+
+        
+        self.p6 = self.MSEPlot.plotItem
+        
+        self.p6.showGrid(x = True, y = True, alpha = 0.7)   
+        self.MSECurve = self.p6.plot()
+        self.MSECurve.setPen(pg.mkPen(color="#fff000", width=2))
+        self.MSECurve.getViewBox().invertY(True)
+        self.p6.getAxis('right').setLabel('MSE', color='#0000ff')
+
+        #Bit Torque Plot
+        layoutBitTorque = QHBoxLayout()
+        
+        self.BitTorquePlot = pg.PlotWidget()
+        self.BitTorquePlot.setYRange(0, 60)
+        self.BitTorquePlot.setXRange(0,10)
+        layoutBitTorque.addWidget(self.BitTorquePlot)
+        self.graphicsView_adv_bitTorque.setLayout(layoutBitTorque)
+
+        
+        self.p6 = self.BitTorquePlot.plotItem
+        
+        self.p6.showGrid(x = True, y = True, alpha = 0.7)   
+        self.BitTorqueCurve = self.p6.plot()
+        self.BitTorqueCurve.setPen(pg.mkPen(color="#fff000", width=2))
+        self.BitTorqueCurve.getViewBox().invertY(True)
+        self.p6.getAxis('right').setLabel('Bit Torque', color='#0000ff')
+
+        #Formation Plot
+        layoutFormation = QHBoxLayout()
+        
+        self.FormationPlot = pg.PlotWidget()
+        self.FormationPlot.setYRange(0, 60)
+        self.FormationPlot.setXRange(0,1)
+        layoutFormation.addWidget(self.FormationPlot)
+        self.graphicsView_adv_formation.setLayout(layoutFormation)
+
+        
+        self.p6 = self.FormationPlot.plotItem
+        
+        self.p6.showGrid(x = True, y = True, alpha = 0.7)   
+        self.FormationCurve = self.p6.plot()
+        self.FormationCurve.setPen(pg.mkPen(color="#fff000", width=2))
+        self.FormationCurve.getViewBox().invertY(True)
+        self.p6.getAxis('right').setLabel('Formation', color='#0000ff')
+
+        #UCS Plot
+        layoutUCS = QHBoxLayout()
+        
+        self.UCSPlot = pg.PlotWidget()
+        self.UCSPlot.setYRange(0, 60)
+        self.UCSPlot.setXRange(0,175)
+        layoutUCS.addWidget(self.UCSPlot)
+        self.graphicsView_adv_UCS.setLayout(layoutUCS)
+
+        
+        self.p6 = self.UCSPlot.plotItem
+        
+        self.p6.showGrid(x = True, y = True, alpha = 0.7)   
+        self.UCSCurve = self.p6.plot()
+        self.UCSCurve.setPen(pg.mkPen(color="#fff000", width=2))
+        self.UCSCurve.getViewBox().invertY(True)
+        self.p6.getAxis('right').setLabel('UCS', color='#0000ff')
+
+        #RPMWOB Plot
+        layoutRPMWOB = QHBoxLayout()
+        
+        self.RPMWOBPlot = pg.PlotWidget()
+        self.RPMWOBPlot.setYRange(0, 1500)
+        self.RPMWOBPlot.setXRange(0,15)
+        layoutRPMWOB.addWidget(self.RPMWOBPlot)
+        self.graphicsView_adv_RPMWOB.setLayout(layoutRPMWOB)
+
+        
+        self.p7 = self.RPMWOBPlot.plotItem
+        
+        self.p7.showGrid(x = True, y = True, alpha = 0.7) 
+        
+        self.p7.setLabels(left='RPM',bottom="WOB")
+        self.RPMWOBCurve = self.p7.plot()
+        self.RPMWOBCurve.setPen(pg.mkPen(color="#fff000", width=2))
+        self.p6.getAxis('right').setLabel('RPM', color='#0000ff')
+
+
+    def updateLabels(self,wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
+        WOB = float("{0:.2f}".format(WOB))
+        ROP_15s = float("{0:.2f}".format(ROP_15s))
+        ROP_3m = float("{0:.2f}".format(ROP_3m))
+        MSE = float("{0:.2f}".format(MSE))
+        UCS = float("{0:.2f}".format(UCS))
+        Q = float("{0:.2f}".format(Q))
+        velocity = float("{0:.2f}".format(velocity))
+        dExponenet = float("{0:.2f}".format(dExponenet))
+
+        self.label_adv_WOB.setText(str(WOB))
+        self.label_adv_Pressure.setText(str(Pressure))
+        self.label_adv_torqueMotor.setText(str(Torque))
+        self.label_adv_RPM.setText(str(RPM))
+        self.label_adv_flowRate.setText(str(Q))
+        self.label_adv_ROP15.setText(str(ROP_15s))
+        self.label_adv_ROP3.setText(str(ROP_3m))
+        self.label_adv_Height.setText(str(Height))
+        self.label_adv_Velocity.setText(str(velocity))
+        self.label_adv_stepCounter.setText(str(act1))
+
+        self.lcdNumber_WellTVD.display(TVD)
+        self.lcdNumber_adv_AvgROP.display(ROP_3m)
+        self.lcdNumber_adv_ControllerRPM.display(rpmSetpoint)
+        self.lcdNumber_adv_ControllerWOB.display(wobSetpoint)
+        self.lcdNumber_adv_Duration.display(timeNow)
+
+        self.dial_adv_MSE.setValue(int(MSE))
+        self.dial_adv_ROP.setValue(int(ROP_15s*60))
+        self.dial_adv_flowRate.setValue(int(Q*10))
+        self.dial_adv_WOB.setValue(int(WOB))
+        self.dial_adv_pressure.setValue(int(Pressure*10))
+        self.dial_adv_torque.setValue(int(Torque*10))
+        self.dial_adv_UCS.setValue(int(UCS))
+        self.dial_adv_RPM.setValue(int(RPM))
+        self.dial_adv_axialVib.setValue(int(WOB*9.81))
+
+        self.progressBar_adv_MSE.setValue(int(MSE))
+        self.progressBar_adv_flowRate.setValue(int(Q*10))
+        self.progressBar_adv_WOB.setValue(int(WOB))
+        self.progressBar_adv_Pressure.setValue(int(Pressure*10))
+        self.progressBar_adv_torque.setValue(int(Torque*10))
+        self.progressBar_adv_UCS.setValue(int(UCS))
+        self.progressBar_adv_RPM.setValue(int(RPM))
+        self.progressBar_adv_axialVib.setValue(int(WOB*9.81))
+
+        if TVD >= 0 and TVD < 10:
+            if not self.radioButton_12.isChecked():
+                self.radioButton_12.toggle()
+        elif TVD >= 10 and TVD < 20:
+            if not self.radioButton_13.isChecked():
+                self.radioButton_13.toggle()
+        elif TVD >= 20 and TVD < 30:
+            if not self.radioButton_16.isChecked():
+                self.radioButton_16.toggle()
+        elif TVD >= 30 and TVD < 40:
+            if not self.radioButton_10.isChecked():
+                self.radioButton_10.toggle()
+        elif TVD >= 40 and TVD < 50:
+            if not self.radioButton_14.isChecked():
+                self.radioButton_14.toggle()
+        elif TVD >= 50 and TVD < 60:
+            if not self.radioButton_15.isChecked():
+                self.radioButton_15.toggle()
+        elif TVD >= 60:
+            if not self.radioButton_9.isChecked():
+                self.radioButton_9.toggle()
+        else:
+            pass
+
+
+        global oldTVD
+        global oldWOBset
+        global oldRPMset
+        if self.initTVD:
+            oldTVD = TVD
+            oldWOBset = wobSetpoint
+            oldRPMset = rpmSetpoint
+            self.initTVD = False
+        if  oldTVD+0.5 < TVD:
+            oldTVD = TVD
+            if len(self.RPM) < 100:
+                self.RPM.append(RPM)
+                self.WOB.append(WOB)
+                self.pressure.append(Pressure)
+                self.torque.append(Torque)
+                self.bit_torque.append(torqueBit)
+                self.ROP.append(ROP_15s*60)
+                self.TVD.append(TVD)
+                self.MSE.append(MSE)
+                self.UCS.append(UCS)
+            else:
+                self.RPM = self.RPM[1:] + [RPM]
+                self.WOB = self.WOB[1:] + [WOB]
+                self.pressure = self.pressure[1:] + [Pressure]
+                self.torque = self.torque[1:] + [Torque]
+                self.bit_torque = self.bit_torque[1:] + [torqueBit]
+                self.ROP = self.ROP[1:] + [ROP_15s*60]
+                self.TVD = self.TVD[1:] + [TVD]
+                self.MSE = self.MSE[1:] + [MSE]
+                self.UCS = self.UCS[1:] + [UCS]
+
+            self.RPMCurve.setData(self.RPM,self.TVD)
+            self.torqueCurve.setData(self.torque,self.TVD)
+            self.ROPCurve.setData(self.ROP,self.TVD)
+            self.WOBCurve.setData(self.WOB,self.TVD)
+            self.PressureCurve.setData(self.pressure,self.TVD)
+            self.MSECurve.setData(self.MSE,self.TVD)
+            self.BitTorqueCurve.setData(self.bit_torque,self.TVD)
+            self.UCSCurve.setData(self.UCS,self.TVD)
+        
+        if oldWOBset != wobSetpoint or oldRPMset != rpmSetpoint:
+            oldWOBset  = wobSetpoint
+            oldRPMset = rpmSetpoint
+            if len(self.wobSet) < 15:
+                self.wobSet.append(wobSetpoint)
+                self.rpmSet.append(rpmSetpoint)
+            else:
+                self.wobSet = self.wobSet[1:] + [wobSetpoint]
+                self.rpmSet = self.rpmSet[1:] + [rpmSetpoint]
+            
+            self.RPMWOBCurve.setData(self.wobSet,self.rpmSet)
     
 
 
@@ -439,12 +708,13 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         layoutRPM = QHBoxLayout()
         
         self.RPMPlot = pg.PlotWidget()
+        self.RPMPlot.setYRange(0,1500)
         layoutRPM.addWidget(self.RPMPlot)
         self.graphicsView_2.setLayout(layoutRPM) # Places the plot in the graphisView from the desinger
 
         self.p1 = self.RPMPlot.plotItem
         self.p1.setLabels(left='RPM',bottom="Time[seconds]")
-        self.p1.showGrid(x = True, y = True, alpha = 0.4)   
+        self.p1.showGrid(x = True, y = True, alpha = 0.7)   
         self.RPMCurve = self.p1.plot()
         self.RPMCurve.setPen(pg.mkPen(color="#fff000", width=2))
         self.p1.getAxis('right').setLabel('RPM', color='#0000ff')
@@ -453,28 +723,30 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         layoutTorque = QHBoxLayout()
         
         self.torquePlot = pg.PlotWidget()
+        self.torquePlot.setYRange(0,10)
         layoutTorque.addWidget(self.torquePlot)
         self.graphicsView.setLayout(layoutTorque)
 
         
         self.p2 = self.torquePlot.plotItem
         self.p2.setLabels(left='Torque',bottom="Time[seconds]")
-        self.p2.showGrid(x = True, y = True, alpha = 0.4)   
+        self.p2.showGrid(x = True, y = True, alpha = 0.7)   
         self.torqueCurve = self.p2.plot()
         self.torqueCurve.setPen(pg.mkPen(color="#fff000", width=2))
         self.p2.getAxis('right').setLabel('RPM', color='#0000ff')
 
-        #Init the Vibration plot
+        #Init the ROP plot
         layoutROP = QHBoxLayout()
         
         self.ROPPlot = pg.PlotWidget()
+        self.ROPPlot.setYRange(0,50)
         layoutROP.addWidget(self.ROPPlot)
         self.graphicsView_3.setLayout(layoutROP)
 
         
         self.p3 = self.ROPPlot.plotItem
         self.p3.setLabels(left='ROP',bottom="Time[seconds]")
-        self.p3.showGrid(x = True, y = True, alpha = 0.5)   
+        self.p3.showGrid(x = True, y = True, alpha = 0.7)   
         self.ROPCurve = self.p3.plot()
         self.ROPCurve.setPen(pg.mkPen(color="#fff000", width=2))
         self.p3.getAxis('right').setLabel('ROP', color='#0000ff')
@@ -483,13 +755,15 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         layoutWOB = QHBoxLayout()
         
         self.WOBPlot = pg.PlotWidget()
+        
         layoutWOB.addWidget(self.WOBPlot)
+        self.WOBPlot.setYRange(0,20)
         self.graphicsView_4.setLayout(layoutWOB)
 
         
         self.p4 = self.WOBPlot.plotItem
         self.p4.setLabels(left='WOB',bottom="Time[seconds]")
-        self.p4.showGrid(x = True, y = True, alpha = 0.4)   
+        self.p4.showGrid(x = True, y = True, alpha = 0.7)   
         self.WOBCurve = self.p4.plot()
         self.WOBCurve.setPen(pg.mkPen(color="#fff000", width=2))
         self.p4.getAxis('right').setLabel('WOB', color='#0000ff')
@@ -498,13 +772,14 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         layoutPressure = QHBoxLayout()
         
         self.PressurePlot = pg.PlotWidget()
+        self.PressurePlot.setYRange(0,5)
         layoutPressure.addWidget(self.PressurePlot)
         self.graphicsView_5.setLayout(layoutPressure)
 
         
         self.p5 = self.PressurePlot.plotItem
         self.p5.setLabels(left='Pressure',bottom="Time[seconds]")
-        self.p5.showGrid(x = True, y = True, alpha = 0.4)   
+        self.p5.showGrid(x = True, y = True, alpha = 0.7)   
         self.PressureCurve = self.p5.plot()
         self.PressureCurve.setPen(pg.mkPen(color="#fff000", width=2))
         self.p5.getAxis('right').setLabel('Pressure', color='#0000ff')
@@ -514,33 +789,34 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         
         self.MSEPlot = pg.PlotWidget()
         layoutMSE.addWidget(self.MSEPlot)
+        self.MSEPlot.setYRange(0,500)
         self.graphicsView_6.setLayout(layoutMSE)
 
         
         self.p6 = self.MSEPlot.plotItem
         self.p6.setLabels(left='MSE',bottom="Time[seconds]")
-        self.p6.showGrid(x = True, y = True, alpha = 0.4)   
+        self.p6.showGrid(x = True, y = True, alpha = 0.7)   
         self.MSECurve = self.p6.plot()
         self.MSECurve.setPen(pg.mkPen(color="#fff000", width=2))
         self.p6.getAxis('right').setLabel('MSE', color='#0000ff')
 
     #When called, push new data in the list of data and updates graph
-    def updateGraph(self,velocity,TVD,act1,act2,act,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
-        if len(self.RPM) < 200:
+    def updateGraph(self,wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
+        if len(self.RPM) < 50:
             self.RPM.append(RPM)
             self.WOB.append(WOB)
             self.pressure.append(Pressure)
             self.torque.append(Torque)
-            self.ROP.append(ROP_15s)
+            self.ROP.append(ROP_15s*60)
             self.time.append(timeNow)
-            self.MSE.append(Q)
+            self.MSE.append(MSE)
         else:
             self.RPM = self.RPM[1:] + [RPM]
             self.WOB = self.WOB[1:] + [WOB]
             self.pressure = self.pressure[1:] + [Pressure]
             self.torque = self.torque[1:] + [Torque]
-            self.ROP = self.ROP[1:] + [ROP_15s]
-            self.MSE = self.MSE[1:] + [Q]
+            self.ROP = self.ROP[1:] + [ROP_15s*60]
+            self.MSE = self.MSE[1:] + [MSE]
             self.time = self.time[1:] + [timeNow]
 
         self.RPMCurve.setData(self.time,self.RPM)

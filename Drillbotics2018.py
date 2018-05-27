@@ -1657,6 +1657,7 @@ class Ui_C(object):
         self.doubleSpinBox_WOB.setFont(font)
         self.doubleSpinBox_WOB.setDecimals(4)
         self.doubleSpinBox_WOB.setMaximum(30.0)
+        self.doubleSpinBox_WOB.setValue(2.0)
         self.doubleSpinBox_WOB.setSingleStep(0.1)
         self.doubleSpinBox_WOB.setObjectName("doubleSpinBox_WOB")
         self.gridLayout_3.addWidget(self.doubleSpinBox_WOB, 4, 2, 1, 1)
@@ -1666,7 +1667,7 @@ class Ui_C(object):
         self.doubleSpinBox_Kp.setFont(font)
         self.doubleSpinBox_Kp.setDecimals(10)
         self.doubleSpinBox_Kp.setMaximum(1000.0)
-        self.doubleSpinBox_Kp.setValue(0.01442)
+        self.doubleSpinBox_Kp.setValue(0.00001)
         self.doubleSpinBox_Kp.setSingleStep(1e-06)
         self.doubleSpinBox_Kp.setObjectName("doubleSpinBox_Kp")
         self.gridLayout_3.addWidget(self.doubleSpinBox_Kp, 5, 2, 1, 1)
@@ -1676,7 +1677,7 @@ class Ui_C(object):
         self.doubleSpinBox_Ki.setFont(font)
         self.doubleSpinBox_Ki.setDecimals(10)
         self.doubleSpinBox_Ki.setMaximum(1000.0)
-        self.doubleSpinBox_Ki.setValue(109.6)
+        self.doubleSpinBox_Ki.setValue(0.0001)
         self.doubleSpinBox_Ki.setSingleStep(1e-06)
         self.doubleSpinBox_Ki.setObjectName("doubleSpinBox_Ki")
         self.gridLayout_3.addWidget(self.doubleSpinBox_Ki, 6, 2, 1, 1)
@@ -1702,7 +1703,7 @@ class Ui_C(object):
         self.doubleSpinBox_Kd.setFont(font)
         self.doubleSpinBox_Kd.setDecimals(10)
         self.doubleSpinBox_Kd.setMaximum(1000.0)
-        self.doubleSpinBox_Kd.setValue(0.00000029)
+        self.doubleSpinBox_Kd.setValue(0)
         self.doubleSpinBox_Kd.setSingleStep(1e-06)
         self.doubleSpinBox_Kd.setObjectName("doubleSpinBox_Kd")
         self.gridLayout_3.addWidget(self.doubleSpinBox_Kd, 7, 2, 1, 1)
@@ -1830,6 +1831,8 @@ class Ui_C(object):
         self.pushButton_Stop_Drilling_2.clicked.connect(self.pushButton_Stop_Rotation.click)
         self.pushButton_Stop_Drilling_2.clicked.connect(self.pushButton_Stop_Hoisting.click)
         self.pushButton_Stop_Drilling_2.clicked.connect(self.pushButton_Stop_Pump.click)
+        self.pushButton_Advanced_UI.clicked.connect(self.pushButton_Reset_Stepper_Pos.click)
+        self.pushButton_Advanced_UI.clicked.connect(self.pushButton_Reset_WOB_2.click)
         QtCore.QMetaObject.connectSlotsByName(C)
 
     def retranslateUi(self, C):
@@ -1924,7 +1927,7 @@ class Ui_C(object):
         self.label_100.setText(_translate("C", "30cm"))
         self.label_101.setText(_translate("C", "20cm"))
         self.label_102.setText(_translate("C", "10cm"))
-        self.label_Rotating_2.setText(_translate("C", "Duration [s]"))
+        self.label_Rotating_2.setText(_translate("C", "Duration [min]"))
         self.label_104.setText(_translate("C", "Current Formation"))
         self.textBrowser_CurrentFormation.setHtml(_translate("C", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
@@ -1946,7 +1949,7 @@ class Ui_C(object):
 "p, li { white-space: pre-wrap; }\n"
 "</style></head><body style=\" font-family:\'MS Shell Dlg 2\'; font-size:8.25pt; font-weight:400; font-style:normal;\">\n"
 "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-size:10pt;\">Autonomous Drillling State! Check box to access the Rig Operation Monitor.</span></p></body></html>"))
-        self.label_94.setText(_translate("C", "TVD [m]"))
+        self.label_94.setText(_translate("C", "TVD [cm]"))
         self.pushButton_Start_Drilling.setText(_translate("C", "START Autonomous"))
         self.pushButton_Stop_Drilling.setText(_translate("C", "EMERGENCY STOP"))
         self.pushButton_Advanced_UI.setText(_translate("C", "OPEN Adv. GUI"))
@@ -1963,7 +1966,7 @@ class Ui_C(object):
         self.pushButton_Reset_Hook_Load.setText(_translate("C", "Reset Hook Load"))
         self.pushButton_Open_Brake.setText(_translate("C", "Open Brakes"))
         self.pushButton_Stop_Pump.setText(_translate("C", "Stop Pumps"))
-        self.pushButton_Reset_Stepper_Pos.setText(_translate("C", "Reset Step. Pos."))
+        self.pushButton_Reset_Stepper_Pos.setText(_translate("C", "Reset TVD"))
         self.pushButton_TogglePID.setText(_translate("C", "Toggle PID"))
         self.pushButton_Close_Brake.setText(_translate("C", "Close Brakes"))
         self.pushButton_Reset_ROP.setText(_translate("C", "Reset ROP"))

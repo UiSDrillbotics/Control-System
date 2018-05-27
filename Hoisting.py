@@ -155,13 +155,15 @@ class Hoisting:
         logging.info("PID controller set with WOB: " + str(WOB) + " and parameters p: "+ kp + " i: "+ ki + " d: " + kd)
 
     def resetSteppers(self):
-        command = str(CommandType.RESETSTEPPERS.value)
-        output = command + ";"+ "\n"
-        self.arduinoHoistingData.hoistingQueue.put(output)
-        logging.info("Resetting steppers")
+        pass
+        #command = str(CommandType.RESETSTEPPERS.value)
+        #output = command + ";"+ "\n"
+        #self.arduinoHoistingData.hoistingQueue.put(output)
+        #logging.info("Resetting steppers")
     
     def resetWOB(self):
         self.hookLoad = self.arduinoHoistingData.getHoistingSensorData()["sumZ"]
+        self.arduinoHoistingData.WOBSetPoint = self.hookLoad
         command = str(CommandType.RESETWOB.value)
         output = command + ";"+ "\n"
         self.arduinoHoistingData.hoistingQueue.put(output)
@@ -204,7 +206,7 @@ class Hoisting:
         else:
             try:         
                 rotData = self.arduinoRotationData.getRotationSensorData()
-                MSE = ((4*(self.getWOB())/((math.pi*0.028575**2))) + (2*math.pi*rotData["torqueMotor"]*rotData["measuredRPM"]/60)/(((math.pi/4)*(0.028575**2))*self.calcROP15s()))
+                MSE = (((4*(self.getWOB()*9.81)/((math.pi*0.028575**2))) + (2*math.pi*rotData["torqueMotor"]*rotData["measuredRPM"])/(((math.pi/4)*(0.028575**2))*(self.calcROP15s()*0.06)))/1000000)
                 # MSE = ((4*(self.getWOB())*9.8066500286389))/(math.pi*0.0286**2) + ((4*rotData["torqueMotor"]*rotData["measuredRPM"])/(math.pi*self.calcROP15s()*0.0286**2))
             except:
                 MSE = 0        
@@ -226,5 +228,5 @@ class Hoisting:
         return DEXP
 
     def velocity(self):
-        velocity = self.calcROP15s() *3.6
+        velocity = self.calcROP15s() * 3.6
         return velocity

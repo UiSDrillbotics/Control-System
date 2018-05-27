@@ -213,11 +213,11 @@ class Coordination(threading.Thread):
 
                     self.hoistingSystem.wob(0)
                     time.sleep(1)
-                    self.hoistingSystem.resetSteppers()
+                    self.hoistingData.resetTVD()
                     
                     time.sleep(1)
                     self.position = self.hoistingData.getHoistingSensorData()["stepperArduinoPos1"]
-                    self.hoistingData.newTVD = 0
+                    self.hoistingData.oldTVD = self.hoistingData.getHoistingSensorData()["stepperArduinoPos1"]
                     self.hoistingSystem.move("5", "Raise", "500", "4")
                     time.sleep(1)
                     self.fuckitCountDown = 50
@@ -352,7 +352,7 @@ class Coordination(threading.Thread):
                     self.optimizeWOB = True
                     self.numberOfInc = 0
 
-            if self.calculatingROP and (time.time() - self.calculatingROPTimer >= 15):
+            if self.calculatingROP and (time.time() - self.calculatingROPTimer >= 5):
                 self.calculatingROP = False
                 self.newROP = self.hoistingSystem.calcROP15s()
                 if self.newROP >= self.bestROP:
@@ -380,7 +380,7 @@ class Coordination(threading.Thread):
                     self.optimizeWOB = True
                     self.numberOfInc = 0
 
-            if self.calculatingROP and (time.time() - self.calculatingROPTimer >= 15):
+            if self.calculatingROP and (time.time() - self.calculatingROPTimer >= 5):
                 self.calculatingROP = False
                 self.newROP = self.hoistingSystem.calcROP15s()
                 if self.newROP >= self.bestROP:

@@ -224,7 +224,7 @@ border-color: rgb(0, 0, 0);</string>
      <string>ROP [mm/min]:</string>
     </property>
    </widget>
-   <widget class="QDial" name="dial_adv_bitTorque">
+   <widget class="QDial" name="dial_adv_flowRate">
     <property name="geometry">
      <rect>
       <x>2020</x>
@@ -649,7 +649,7 @@ border-color: rgb(0, 0, 0);</string>
      <number>24</number>
     </property>
    </widget>
-   <widget class="QProgressBar" name="progressBar_adv_bitTorquue">
+   <widget class="QProgressBar" name="progressBar_adv_flowRate">
     <property name="geometry">
      <rect>
       <x>2110</x>
@@ -3032,7 +3032,7 @@ border-color: rgb(0, 0, 0);</string>
    <zorder>line_6</zorder>
    <zorder>dial_adv_ROP</zorder>
    <zorder>label_6</zorder>
-   <zorder>dial_adv_bitTorque</zorder>
+   <zorder>dial_adv_flowRate</zorder>
    <zorder>label_7</zorder>
    <zorder>label_8</zorder>
    <zorder>label_9</zorder>
@@ -3053,7 +3053,7 @@ border-color: rgb(0, 0, 0);</string>
    <zorder>label_39</zorder>
    <zorder>label_40</zorder>
    <zorder>progressBar_adv_axialVib</zorder>
-   <zorder>progressBar_adv_bitTorquue</zorder>
+   <zorder>progressBar_adv_flowRate</zorder>
    <zorder>label_41</zorder>
    <zorder>layoutWidget</zorder>
    <zorder>label_95</zorder>

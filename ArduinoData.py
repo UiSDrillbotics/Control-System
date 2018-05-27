@@ -5,6 +5,7 @@ import queue
 import serial
 import logging,sys
 from time import sleep
+import database
 
 
 
@@ -55,7 +56,7 @@ class HoistingData(threading.Thread):
     def setSerialPort(self,serialPort):
         try:
 
-            self.serialConn.baudrate = 57600
+            self.serialConn.baudrate = 115200
             self.serialConn.port = serialPort
             self.serialConn.write_timeout = 0
             #self.serialConn.set_buffer_size(rx_size = 128000, tx_size = 128000)
@@ -113,9 +114,11 @@ class HoistingData(threading.Thread):
                     if self.taggedBottom == False and self.hoistingSensor["wob"] >= self.WOBSetPoint:
                         self.taggedBottom == True
 
-                    self.newTVD += (self.hoistingSensor["stepperArduinoPos1"] - self.oldTVD)
-                    self.oldTVD = self.newTVD
+                    
+                    self.newTVD = (self.hoistingSensor["stepperArduinoPos1"] - self.oldTVD)
+
                     self.hoistingSensor["TVD"] = self.newTVD
+                    database.new_inc_data = True
                     self.lock.release()
                     
                 except:
@@ -127,7 +130,9 @@ class HoistingData(threading.Thread):
                     print(hoistingData)
                     pass
          
-
+    def resetTVD(self):
+        self.oldTVD = self.getHoistingSensorData()["stepperArduinoPos1"]
+        
     def getHoistingSensorData(self):
         self.lock.acquire()
         hs = self.hoistingSensor
