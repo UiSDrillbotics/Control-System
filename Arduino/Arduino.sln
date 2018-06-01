@@ -1,0 +1,43 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27130.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Hoisting", "hoisting\Hoisting.vcxproj", "{7B57D647-0360-4EC2-86CC-D0F1E728EFD7}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Rotation", "Rotation\Rotation.vcxproj", "{418EDA40-85A7-42C8-AAD7-67B2AC44FA07}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Circulation", "circulation\Circulation.vcxproj", "{90D6271C-21E2-4969-9D45-DB8DBA05EC3D}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Hoisting2", "Hoisting2\Hoisting2.vcxproj", "{C5F80730-F44F-4478-BDAE-6634EFC2CA88}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7B57D647-0360-4EC2-86CC-D0F1E728EFD7}.Debug|x86.ActiveCfg = Debug|Win32
+		{7B57D647-0360-4EC2-86CC-D0F1E728EFD7}.Debug|x86.Build.0 = Debug|Win32
+		{7B57D647-0360-4EC2-86CC-D0F1E728EFD7}.Release|x86.ActiveCfg = Release|Win32
+		{7B57D647-0360-4EC2-86CC-D0F1E728EFD7}.Release|x86.Build.0 = Release|Win32
+		{418EDA40-85A7-42C8-AAD7-67B2AC44FA07}.Debug|x86.ActiveCfg = Debug|Win32
+		{418EDA40-85A7-42C8-AAD7-67B2AC44FA07}.Debug|x86.Build.0 = Debug|Win32
+		{418EDA40-85A7-42C8-AAD7-67B2AC44FA07}.Release|x86.ActiveCfg = Release|Win32
+		{418EDA40-85A7-42C8-AAD7-67B2AC44FA07}.Release|x86.Build.0 = Release|Win32
+		{90D6271C-21E2-4969-9D45-DB8DBA05EC3D}.Debug|x86.ActiveCfg = Debug|Win32
+		{90D6271C-21E2-4969-9D45-DB8DBA05EC3D}.Debug|x86.Build.0 = Debug|Win32
+		{90D6271C-21E2-4969-9D45-DB8DBA05EC3D}.Release|x86.ActiveCfg = Release|Win32
+		{90D6271C-21E2-4969-9D45-DB8DBA05EC3D}.Release|x86.Build.0 = Release|Win32
+		{C5F80730-F44F-4478-BDAE-6634EFC2CA88}.Debug|x86.ActiveCfg = Debug|Win32
+		{C5F80730-F44F-4478-BDAE-6634EFC2CA88}.Debug|x86.Build.0 = Debug|Win32
+		{C5F80730-F44F-4478-BDAE-6634EFC2CA88}.Release|x86.ActiveCfg = Release|Win32
+		{C5F80730-F44F-4478-BDAE-6634EFC2CA88}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DB1D1034-1708-4841-9C8E-F81A23D37D9C}
+	EndGlobalSection
+EndGlobal
