@@ -775,9 +775,9 @@ void loop()
     int vibrationNormalCounter = 0;
     int vibrationDamageCounter = 0;
     //int vibrationNormalLimit = ((WOBSetpoint * 1.5) / 0.101971621) * (3.138 / 200) * (4096 / 3.3);
-    int vibrationNormalLimit = WOBSetpoint_int * 2.0; //already being sent as an int
+    int vibrationNormalLimit = WOBSetpoint_int * 200.0; //already being sent as an int
     //int vibrationDamageLimit = (10.0 / 0.101971621) * (3.138 / 200) * (4096 / 3.3);
-    int vibrationDamageLimit = WOBSetpoint_int * 4.0;
+    int vibrationDamageLimit = (28 / 0.101971621) * (3.138 / 200) * (4096 / 3.3); // was WOBSetpoint_int * 4.0
       for (int i = 0; i < 49; i++)
     {
       if (WOBLog[i] > vibrationNormalLimit)

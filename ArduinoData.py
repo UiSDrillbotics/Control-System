@@ -6,7 +6,7 @@ import serial
 import logging,sys
 from time import sleep
 import database
-
+import Classifier
 
 
 logging.basicConfig(stream=sys.stderr, level= logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
@@ -119,6 +119,7 @@ class HoistingData(threading.Thread):
 
                     self.hoistingSensor["TVD"] = self.newTVD
                     database.new_inc_data = True
+                    Classifier.new_inc_data = True
                     self.lock.release()
                     
                 except:
@@ -160,6 +161,7 @@ class RotationData(threading.Thread):
         self.serialConn = serial.Serial()
 
         self.overTorqueCounter = 0
+        self.motorOverLoadCounter = 0
 
     def setSerialPort(self,serialPort):
         try:
@@ -193,10 +195,7 @@ class RotationData(threading.Thread):
                     self.rotationSensor["measuredRPM"] = float(rotationData[1])
                     self.rotationSensor["torqueMotor"] = float(rotationData[2])
                     self.rotationSensor["torqueSensor"] = float(rotationData[3])
-                    if self.rotationSensor["torqueMotor"] > 2.4:
-                        self.overTorqueCounter +=1 
-                    else:
-                        self.overTorqueCounter = 0
+
                     self.lock.release()
                 except:
                     try:

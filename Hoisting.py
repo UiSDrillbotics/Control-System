@@ -54,7 +54,7 @@ class Hoisting:
         self.KIntegral = "0.0001"
         self.KDifferential = "0.00"
 
-        self.WOBSetpoint = None
+        self.WOBSetpoint = 0
 
         self.arduinoRailVoltage = 3.138
         

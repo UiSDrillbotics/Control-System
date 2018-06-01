@@ -49,10 +49,10 @@ db = database.Database(t1,t3,t2,hoistingSystem,circulationSystem,rotationSystem)
 db.initDb()
 
 #Init the classifier
-classifier = Classify()
+classifier = Classify(t1)
 ##Gets data and triggers the plot
 class GetData(QThread):
-    dataChanged = pyqtSignal(str,float,float,float,float,float,float,float,float,float,float,float,
+    dataChanged = pyqtSignal(bool,int,float,float,float,str,float,float,float,float,float,float,float,float,float,float,float,
         float, float, float, float,float,float,float,float,float,float,float,float,float,float)
     def __init__(self, parent=None):
         QThread.__init__(self, parent)
@@ -74,12 +74,19 @@ class GetData(QThread):
             torqueSensor = rSensorData["torqueSensor"]
             pressure = cSensorData["pressure"]
 
+            hoistingMode = hSensorData["hoistingMode"]
+            coordinatorProblem  = coordinationSystem.ongoingProblem.value
 
+            topDriveMode = rSensorData["topDriveMode"]
+            circulationMode = cSensorData["mode"]
             Z1 = hSensorData["z1"]
             Z2 = hSensorData["z2"]
             Z3 = hSensorData["z3"]
-            rock = classifier.predict(Z1)
+            rock = classifier.predicedLabel
+
             rock = str(rock)
+            newFormation = coordinationSystem.newFormation
+            #print(rock)
             sumZ = hSensorData["sumZ"]
             ROP_15s = (hoistingSystem.calcROP15s())/15
 
@@ -120,7 +127,7 @@ class GetData(QThread):
             time.sleep(0.1)
           
             #Sends the new data to the chart and labels in the HMI
-            self.dataChanged.emit(rock,wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,
+            self.dataChanged.emit(newFormation,coordinatorProblem,circulationMode,topDriveMode,hoistingMode,rock,wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,
                 sumZ,WOB,pressure,torqueMotor,RPM,vibration,MSE,UCS,torqueBit,dExponenet,timeNow) 
             #Triggers and updates the plot and labels
 
@@ -210,21 +217,17 @@ class ControlUI(QWidget,Drillbotics2018.Ui_C):
         t3.start()
         #Starts the database thread
         db.start()
+        classifier.start()
+        self.label_Brake_Open.setStyleSheet("background-color: yellow")
+        self.label_Brake_Closed.setStyleSheet("background-color: white")
         self.pushButton_OpenPorts.setDisabled(True)
     #Method for reading the selected RPM and send it to the Rotation module
     def setRPM(self):
         rpm = self.doubleSpinBox_RPM.value()
-        #if int(rpm) == 0:
-            #self.label_Rotating.setStyleSheet("background-color: white")
-            #self.label_Stopped_2.setStyleSheet("background-color: green")
-        #else:
-            #self.label_Rotating.setStyleSheet("background-color: green")
-            #self.label_Stopped_2.setStyleSheet("background-color: white")
         rotationSystem.setRPM(int(rpm))
 
     def stopRotation(self):
-        #self.label_Rotating.setStyleSheet("background-color: white")
-        #self.label_Stopped_2.setStyleSheet("background-color: green")
+
         rotationSystem.setRPM(0)
         
     def moveHoisting(self):
@@ -301,7 +304,7 @@ class ControlUI(QWidget,Drillbotics2018.Ui_C):
         mb.information(self,' ',"Automated drilling is terimated, restart the system for a new drilling process",  mb.Ok | mb.Cancel)
  
     
-    def updateLabels(self,rock,wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
+    def updateLabels(self,newFormation,coordinatorProblem,circulationMode,topDriveMode,hoistingMode,rock,wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
         WOB = float("{0:.2f}".format(WOB))
         ROP_15s = float("{0:.2f}".format(ROP_15s))
         ROP_3m = float("{0:.2f}".format(ROP_3m))
@@ -358,8 +361,91 @@ class ControlUI(QWidget,Drillbotics2018.Ui_C):
                 self.radioButton_9.toggle()
         else:
             pass
-    
-    
+
+        if hoistingMode == 0:
+            self.label_Start.setStyleSheet("background-color: yellow")
+        else:
+            self.label_Start.setStyleSheet("background-color: white")
+        if hoistingMode == 1:
+            self.label_Calibrating.setStyleSheet("background-color: yellow")
+        else:
+            self.label_Calibrating.setStyleSheet("background-color: white")
+        if hoistingMode == 2:
+            self.label_Moving.setStyleSheet("background-color: yellow")
+        else:
+            self.label_Moving.setStyleSheet("background-color: white")
+        if hoistingMode == 3:
+            self.label_Hoisting_Stopped.setStyleSheet("background-color: yellow")
+        else:
+            self.label_Hoisting_Stopped.setStyleSheet("background-color: white")
+        if hoistingMode == 4:
+            self.label_WOB_Ctrl.setStyleSheet("background-color: yellow")
+        else:
+            self.label_WOB_Ctrl.setStyleSheet("background-color: white")
+        if hoistingMode == 10:
+            self.label_Axial_Vibration.setStyleSheet("background-color: red")
+        else:
+            self.label_Axial_Vibration.setStyleSheet("background-color: white")
+         
+        if circulationMode == 0:
+            self.label_Pump_Off.setStyleSheet("background-color: yellow")
+        else:
+            self.label_Pump_Off.setStyleSheet("background-color: white")
+
+        if circulationMode == 1:
+            self.label_Starting.setStyleSheet("background-color: yellow")
+            self.label_Pump_On.setStyleSheet("background-color: yellow")
+        else:
+            self.label_Starting.setStyleSheet("background-color: white")
+            self.label_Pump_On.setStyleSheet("background-color: white")
+        
+        if circulationMode == 2:
+            self.label_Monitor.setStyleSheet("background-color: yellow")
+            self.label_Pump_On.setStyleSheet("background-color: yellow")
+        else:
+            self.label_Monitor.setStyleSheet("background-color: white")
+            self.label_Pump_On.setStyleSheet("background-color: white")
+
+        if circulationMode == 3:
+            self.label_Overpressure.setStyleSheet("background-color: red")
+
+        else:
+            self.label_Overpressure.setStyleSheet("background-color: white")
+        
+        if circulationMode == 4:
+            self.label_Leak.setStyleSheet("background-color: red")
+            self.label_LEAK.setStyleSheet("background-color: yellow")
+        else:
+            self.label_Leak.setStyleSheet("background-color: white")
+            self.label_LEAK.setStyleSheet("background-color: white")
+
+ 
+        if topDriveMode == 0 or rpmSetpoint == 0:
+            self.label_No_Rotation.setStyleSheet("background-color: yellow")
+            self.label_Rotating_Bit.setStyleSheet("background-color: white")
+        else:
+            self.label_No_Rotation.setStyleSheet("background-color: white")
+            self.label_Rotating_Bit.setStyleSheet("background-color: yellow")
+        
+        if coordinatorProblem == 4:
+            self.label_Stick_Slip.setStyleSheet("background-color: red")
+        else:
+            self.label_Stick_Slip.setStyleSheet("background-color: white")
+        if coordinatorProblem == 11:
+            self.label_Over_Torque.setStyleSheet("background-color: red")
+        else:
+            self.label_Over_Torque.setStyleSheet("background-color: white")
+        if coordinatorProblem == 12:
+            self.label_Twist_Off.setStyleSheet("background-color: red")
+        else:
+            self.label_Twist_Off.setStyleSheet("background-color: white")
+        
+        if newFormation:
+            self.label_New_Formation.setStyleSheet("background-color: green")
+        else:
+            self.label_New_Formation.setStyleSheet("background-color: white")
+
+        
 
 class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
     def __init__(self,dataThread,parent=None):
@@ -407,7 +493,7 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         
         self.torquePlot = pg.PlotWidget()
         self.torquePlot.setYRange(0, 60)
-        self.torquePlot.setXRange(0,10)
+        self.torquePlot.setXRange(0,4)
         layoutTorque.addWidget(self.torquePlot)
         self.graphicsView_adv_torque.setLayout(layoutTorque)
 
@@ -425,7 +511,7 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         
         self.ROPPlot = pg.PlotWidget()
         self.ROPPlot.setYRange(0, 60)
-        self.ROPPlot.setXRange(0,50)
+        self.ROPPlot.setXRange(0,80)
         layoutROP.addWidget(self.ROPPlot)
         self.graphicsView_adv_ROP.setLayout(layoutROP)
 
@@ -497,7 +583,7 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         
         self.BitTorquePlot = pg.PlotWidget()
         self.BitTorquePlot.setYRange(0, 60)
-        self.BitTorquePlot.setXRange(0,10)
+        self.BitTorquePlot.setXRange(0,4)
         layoutBitTorque.addWidget(self.BitTorquePlot)
         self.graphicsView_adv_bitTorque.setLayout(layoutBitTorque)
 
@@ -561,12 +647,12 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         self.p7.showGrid(x = True, y = True, alpha = 0.7) 
         
         self.p7.setLabels(left='RPM',bottom="WOB")
-        self.RPMWOBCurve = self.p7.plot()
+        self.RPMWOBCurve = self.p7.plot(symbol="x")
         self.RPMWOBCurve.setPen(pg.mkPen(color="#fff000", width=2))
         self.p6.getAxis('right').setLabel('RPM', color='#0000ff')
 
 
-    def updateLabels(self,rock,wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
+    def updateLabels(self,newFormation,coordinatorProblem,circulationMode,topDriveMode,hoistingMode,rock,wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
         WOB = float("{0:.2f}".format(WOB))
         ROP_15s = float("{0:.2f}".format(ROP_15s))
         ROP_3m = float("{0:.2f}".format(ROP_3m))
@@ -678,6 +764,10 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
             self.UCSCurve.setData(self.UCS,self.TVD)
         
         if oldWOBset != wobSetpoint or oldRPMset != rpmSetpoint:
+            ROPpos=pg.TextItem(text="ROP:" + str(ROP_15s),anchor=(0,1), color=(47, 149, 200))
+
+            ROPpos.setPos(oldWOBset,oldRPMset)
+            self.RPMWOBPlot.addItem(ROPpos)
             oldWOBset  = wobSetpoint
             oldRPMset = rpmSetpoint
             if len(self.wobSet) < 15:
@@ -689,6 +779,40 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
             
             self.RPMWOBCurve.setData(self.wobSet,self.rpmSet)
     
+        if hoistingMode == 10:
+            self.label_adv_axialVib.setStyleSheet("background-color: red")
+        else:
+            self.label_adv_axialVib.setStyleSheet("background-color: white")
+        if coordinatorProblem == 4:
+            self.label_adv_stickSlip.setStyleSheet("background-color: red")
+        else:
+            self.label_adv_stickSlip.setStyleSheet("background-color: white")
+
+        if coordinatorProblem == 11:
+            self.label_adv_overTorque.setStyleSheet("background-color: red")
+        else:
+            self.label_adv_overTorque.setStyleSheet("background-color: white")
+
+        if coordinatorProblem == 12:
+            self.label_adv_TwistOff.setStyleSheet("background-color: red")
+        else:
+            self.label_adv_TwistOff.setStyleSheet("background-color: white")
+
+        if circulationMode == 3:
+            self.label_adv_overpressure.setStyleSheet("background-color: red")
+        else:
+            self.label_adv_overpressure.setStyleSheet("background-color: white")
+        
+        if circulationMode == 4:
+            self.label_adv_leak.setStyleSheet("background-color: red")
+        else:
+            self.label_adv_leak.setStyleSheet("background-color: white")
+
+        if newFormation:
+            self.label_adv_newForm.setStyleSheet("background-color: green")
+        else:
+            self.label_adv_newForm.setStyleSheet("background-color: white")
+
 
 
 class GUI(QWidget,pyqtdesign.Ui_Form):
@@ -808,7 +932,7 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         self.p6.getAxis('right').setLabel('MSE', color='#0000ff')
 
     #When called, push new data in the list of data and updates graph
-    def updateGraph(self,rock,wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
+    def updateGraph(self,newFormation,coordinatorProblem,circulationMode,topDriveMode,hoistingMode,rock,wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
         if len(self.RPM) < 50:
             self.RPM.append(RPM)
             self.WOB.append(WOB)
