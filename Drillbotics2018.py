@@ -1740,7 +1740,7 @@ class Ui_C(object):
         font.setPointSize(9)
         self.spinBox_Stepper_Delay.setFont(font)
         self.spinBox_Stepper_Delay.setDecimals(4)
-        self.spinBox_Stepper_Delay.setMinimum(35.0)
+        self.spinBox_Stepper_Delay.setMinimum(0)
         self.spinBox_Stepper_Delay.setMaximum(500.0)
         self.spinBox_Stepper_Delay.setSingleStep(10.0)
         self.spinBox_Stepper_Delay.setProperty("value", 35.0)

@@ -528,7 +528,7 @@ void setup()
 volatile boolean motorsDisabled = false;
 
 
-const int upperMargin = 4000;
+const int upperMargin = 5000; // was 4000
 const int lowerMargin = 2000;
 double upperStepcounter = 50;
 double lowerStepcounter = 850;
@@ -1315,7 +1315,7 @@ void moveDistance(float distance, int dir,
     return;
   }
 
-  if ((speed < 30.0) || (speed > 1100)) {
+  if ((speed < 10.0) || (speed > 1100)) {
     Serial.println("Bad Speed");
     return;
   }
