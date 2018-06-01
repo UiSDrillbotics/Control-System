@@ -1,0 +1,9 @@
+*.VC.db
+*.VC.db-wal
+*.VC.db-shm
+*.suo
+*.xml
+*.vcxproj.filters
+*.vsarduino.h
+**/__vm/
+**/Debug/

@@ -26,6 +26,34 @@ int getError() {
 double Height;
 #define STEPS_PER_DISTANCE 250 //steps per mm
 
+#pragma region Pin Constants
+const int loadcellX1 = A4;
+const int loadcellY1 = A11; // was A5 Needed to be changed due to Z1
+const int loadcellZ1 = A5; // was A11
+const int loadcellX2 = A7;
+const int loadcellY2 = A8;
+const int loadcellZ2 = A0;
+const int loadcellX3 = A1;
+const int loadcellY3 = A2;
+const int loadcellZ3 = A3; // was A5
+
+const int Brake1 = 12; // was 3
+const int Brake2 = 10; // was 5
+const int Brake3 = 13; // was 9 
+
+const int direction_wire1 = 3;  // was 45 previously
+const int direction_wire2 = 6;  // was 49
+const int direction_wire3 = 9;  // was 53
+
+const int step_wire1 = 2;   // was 43
+const int step_wire2 = 4;   // was 47
+const int step_wire3 = 7;   // was 51
+
+const int pushButton1 = 11;
+const int pushButton2 = 12;
+const int pushButton3 = 13;
+#pragma endregion
+
 class Actuator {
 private:
 
@@ -305,6 +333,70 @@ public:
 	double ema_s[3];
 };
 
+class HookLoad {
+private:
+	LoadCell lc[3] = { LoadCell(loadcellX1, loadcellY1, loadcellZ1, 0,     0, 0),
+		LoadCell(loadcellX2, loadcellY2, loadcellZ2, 0, 0,    0),
+		LoadCell(loadcellX3, loadcellY3, loadcellZ3, 0,     0,  0)
+	};
+public:
+	void setup(){
+		for (int i = 0; i < 3; i++)
+		{
+			lc[i].setup();
+		}
+	}
+
+	void detect() {
+		for (int i = 0; i < 3; i++)
+		{
+			lc[i].detect();
+		}
+	}
+
+	void filter() {
+		for (int i = 0; i < 3; i++)
+		{
+			lc[i].filter();
+		}
+	}
+
+	int getZ() {
+		return lc[0].getZ() + lc[1].getZ() + lc[2].getZ();
+	}
+
+	int getAge() {
+		return max(max(lc[0].getAge(), lc[1].getAge()), lc[2].getAge());
+	}
+
+	void incAge() {
+		for (int i = 0; i < 3; i++)
+		{
+			lc[i].incAge();
+		}
+	}
+
+	bool above(int margin) {
+		return (lc[0].getZ() > margin) || (lc[1].getZ() > margin) || (lc[2].getZ() > margin);
+	}
+
+	bool below(int margin) {
+		return (lc[0].getZ() < margin) || (lc[1].getZ() < margin) || (lc[2].getZ() < margin);
+	}
+
+	int telemetry_getZ(int idx) {
+		return lc[idx].getZ();
+	}
+
+	int telemetry_getRawX(int idx) {
+		return lc[idx].getRawX();
+	}
+
+	int telemetry_getRawY(int idx) {
+		return lc[idx].getRawY();
+	}
+};
+
 enum commandType {
 	STOP = 1,
 	CALIBRATE = 2,
@@ -330,38 +422,6 @@ const char END_OF_TRANSMISSION = '\n';
 
 const int heightSensor = A7; //was A9
 double heightReading;
-
-
-
-#pragma region Pin Constants
-const int loadcellX1 = A4;
-const int loadcellY1 = A11; // was A5 Needed to be changed due to Z1
-const int loadcellZ1 = A5; // was A11
-const int loadcellX2 = A7;
-const int loadcellY2 = A8;
-const int loadcellZ2 = A0;
-const int loadcellX3 = A1;
-const int loadcellY3 = A2;
-const int loadcellZ3 = A3; // was A5
-
-const int Brake1 = 12; // was 3
-const int Brake2 = 10; // was 5
-const int Brake3 = 13; // was 9 
-
-const int direction_wire1 = 3;  // was 45 previously
-const int direction_wire2 = 6;  // was 49
-const int direction_wire3 = 9;  // was 53
-
-const int step_wire1 = 2;   // was 43
-const int step_wire2 = 4;   // was 47
-const int step_wire3 = 7;   // was 51
-
-const int pushButton1 = 11;
-const int pushButton2 = 12;
-const int pushButton3 = 13;
-#pragma endregion
-
-
 
 enum Modes {
 	START = 0,
@@ -408,11 +468,6 @@ Actuator(direction_wire2, step_wire2, pushButton2, Brake2),
 Actuator(direction_wire3, step_wire3, pushButton3, Brake3)
 };
 
-LoadCell lc[3] = { LoadCell(loadcellX1, loadcellY1, loadcellZ1, 0,     0, 0),
-LoadCell(loadcellX2, loadcellY2, loadcellZ2, 0, 0,    0),
-LoadCell(loadcellX3, loadcellY3, loadcellZ3, 0,     0,  0)
-};
-
 
 
 //step is 0.18 degrees
@@ -440,7 +495,7 @@ bool telemetry_on = true;
 
 double SumZLog[49];
 
-
+HookLoad hookLoad;
 
 void setup()
 {
@@ -450,16 +505,13 @@ void setup()
 	act[0].setup();
 	act[1].setup();
 	act[2].setup();
-	lc[0].setup();
-	lc[1].setup();
-	lc[2].setup();
 	OpenBrakes();
 	for (int sample = 0; sample < 2 * MEDIAN_WINDOW_SIZE; sample++) {
 		for (int i = 0; i < 3; i++) {
-			lc[i].detect();
-			lc[i].filter();
+			hookLoad.detect();
+			hookLoad.filter();
 			//the following equations are from calibrating z1 and z3 using lab scale
-			free_weight_int = (lc[0].getZ() + lc[1].getZ() + lc[2].getZ());
+			free_weight_int = (hookLoad.getZ());
 		}
 	}
 	WOBSetpoint_int = 0;
@@ -497,14 +549,14 @@ void TC3_Handler() {
 		return;
 	}
 	for (int i = 0; i < 3; i++) {
-		if (lc[i].getAge() > maxLoadCellAge) {
+		if (hookLoad.getAge() > maxLoadCellAge) {
 			testError = 2;
 			return;
 		}
 		//putting something here so it doesnt get stuck
 
 		bool shouldStop = false;
-		if (lc[i].getZ() > upperMargin || act[i].getPosition() < upperStepcounter)
+		if (hookLoad.above(upperMargin) || act[i].getPosition() < upperStepcounter)
 		{
 			for (int i = 0; i < 3; i++) {
 				if (act[i].getDirection() == HoistingDirectionCommand::UP) {
@@ -516,7 +568,7 @@ void TC3_Handler() {
 				//remember how far we were supposed to move? maybe not			
 			}
 		}
-		if (lc[i].getZ() < lowerMargin || act[i].getPosition() > lowerStepcounter)
+		if (hookLoad.below(lowerMargin) || act[i].getPosition() > lowerStepcounter)
 		{
 			for (int i = 0; i < 3; i++) {
 				if (act[i].getDirection() == HoistingDirectionCommand::DOWN) {
@@ -531,10 +583,8 @@ void TC3_Handler() {
 
 		//if (shouldStop == true) { for (int i = 0; i < 3; i++) { act[i].stop(); } }
 
-		lc[i].incAge();
-		for (int i = 0; i < 3; i++) {
-			act[i].stepInterrupt();
-		}
+		hookLoad.incAge();
+		act[i].stepInterrupt();
 	}
 }
 
@@ -615,13 +665,8 @@ void loop()
 		sendData;
 	}
 
-	for (int i = 0; i < 3; i++) {
-		lc[i].detect();
-		lc[i].filter();
-
-		//int sumZFiltered = sumZ;;
-		//lowpassFilter(sumZ, &sumZFiltered);
-	}
+	hookLoad.detect();
+	hookLoad.filter();
 
 	//the following equations are from calibrating z1 and z3 using lab scale
 	// sumZ unit: 60 kg / 3*4096 = 4g
@@ -630,7 +675,7 @@ void loop()
 	//	sumZ_numerator = 0;
 	//	sumZ_denominator = 0;
 	//}
-	sumZ_int = (lc[0].getZ() + lc[1].getZ() + lc[2].getZ());
+	sumZ_int = hookLoad.getZ();
 	int sumZ_movingAvg = 0;
 	for (int i = 0; i < 49; i++) //originally 9
 	{
@@ -1010,7 +1055,7 @@ void ReceiveData()
 				Serial.print("; Position: ");
 				Serial.print(act[i].getPosition());
 				Serial.print(" ; Raw Z: ");
-				Serial.println(lc[i].getZ());
+				Serial.println(hookLoad.telemetry_getZ(i));
 			}
 
 			break;
@@ -1018,9 +1063,9 @@ void ReceiveData()
 			Serial.println("zeroing WOB");
 			for (int sample = 0; sample < 2 * MEDIAN_WINDOW_SIZE; sample++) {
 				for (int i = 0; i < 3; i++) {
-					lc[i].detect();
-					lc[i].filter();
-					free_weight_int = lc[0].getZ() + lc[1].getZ() + lc[2].getZ();
+					hookLoad.detect();
+					hookLoad.filter();
+					free_weight_int = hookLoad.getZ();
 				}
 			}
 			Serial.print("WOB = ");
@@ -1058,13 +1103,8 @@ void ReceiveData()
 			while ((position1 + position2 + position3)  > 1)
 			{
 				//need to detect load cells to reset age counter
-				for (int i = 0; i < 3; i++) {
-					lc[i].detect();
-					lc[i].filter();
-
-					//int sumZFiltered = sumZ;;
-					//lowpassFilter(sumZ, &sumZFiltered);
-				}
+				hookLoad.detect();
+				hookLoad.filter();
 
 				position1 = act[0].getStepCounter();
 				position2 = act[1].getStepCounter();
@@ -1079,11 +1119,9 @@ void ReceiveData()
 			delay(1000); //delay just to disipate the energy from stopping
 						 //record hook load
 			for (int sample = 0; sample < 2 * MEDIAN_WINDOW_SIZE; sample++) {
-				for (int i = 0; i < 3; i++) {
-					lc[i].detect();
-					lc[i].filter();
-					free_weight_int = lc[0].getZ() + lc[1].getZ() + lc[2].getZ();
-				}
+				hookLoad.detect();
+				hookLoad.filter();
+				free_weight_int = hookLoad.getZ();
 			}
 			delay(100);
 			Mode = Modes::RESETTINGWOB;
@@ -1142,9 +1180,7 @@ void calibratePosition()
 		cmdSpeed = 200;
 		cmdDirection = HoistingDirectionCommand::UP;
 		cmdActuator = 4;
-		lc[0].detect();
-		lc[1].detect();
-		lc[2].detect();
+		hookLoad.detect();
 		moveDistance(cmdDistance, cmdDirection, cmdSpeed, cmdActuator);
 		int pb1 = digitalRead(pushButton1);
 		int pb2 = digitalRead(pushButton1);
@@ -1164,20 +1200,15 @@ void tagBottom()
 	int tagBottomCounter = 0;
 	int sendingDataCounter = 0;
 	while (!taggedBottom) {
-		for (int i = 0; i < 3; i++) {
-			lc[i].detect();
-			lc[i].filter();
-
-			//int sumZFiltered = sumZ;;
-			//lowpassFilter(sumZ, &sumZFiltered);
-		}
+		hookLoad.detect();
+		hookLoad.filter();
 
 		//if (sumZ_denominator > 50)
 		//{
 		//	sumZ_numerator = 0;
 		//	sumZ_denominator = 0;
 		//}
-		sumZ_numerator += (lc[0].getZ() + lc[1].getZ() + lc[2].getZ());
+		sumZ_numerator += hookLoad.getZ();
 		sumZ_denominator++;
 		sumZ_int = sumZ_numerator / sumZ_denominator;
 		WOB_Measured_int = free_weight_int - sumZ_int;
@@ -1243,13 +1274,8 @@ void tagBottom()
 	while (position1 + position2 + position3 > 0)
 	{
 		//need to detect load cells to reset age counter
-		for (int i = 0; i < 3; i++) {
-			lc[i].detect();
-			lc[i].filter();
-
-			//int sumZFiltered = sumZ;;
-			//lowpassFilter(sumZ, &sumZFiltered);
-		}
+		hookLoad.detect();
+		hookLoad.filter();
 		position1 = act[0].getStepCounter();
 		position2 = act[1].getStepCounter();
 		position3 = act[2].getStepCounter();
@@ -1353,16 +1379,16 @@ void sendData()
 	}
 	for (int i = 0; i < SPACIAL_DIMENSIONS; i++) {
 		Serial.write("y");
-		Serial.print(lc[i].getRawX());
+		Serial.print(hookLoad.telemetry_getRawX(i));
 	}
 	for (int i = 0; i < 3; i++) {
 		Serial.write("y");
-		Serial.print(lc[i].getRawY());
+		Serial.print(hookLoad.telemetry_getRawY(i));
 	}
 
 	for (int i = 0; i < 3; i++) {
 		Serial.write("y");
-		Serial.print(lc[i].getZ());
+		Serial.print(hookLoad.telemetry_getZ(i));
 	}
 	Serial.write("y");
 	Serial.print(rop);
