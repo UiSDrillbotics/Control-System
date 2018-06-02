@@ -54,14 +54,18 @@ class Coordination(threading.Thread):
         self.WOBincrease = 0.5
         self.RPMincrease  = 50
 
-        self.MinRPMLimit = 50
+        self.MinRPMLimit = 50 # THESE VALUES ARE WHERE WE DETERMINE CONSTRAINTS FOR UNI-VARIATE SEARCH ALGORITHMS
         self.MaxRPMLimit = 1200
-        self.MinWOBLimit = 0
-        self.MaxWOBLimit = 10
+        self.MinWOBLimit = 1
+        self.MaxWOBLimit = 15
         self.setpointCountdown = 20
 
         self.wobList = [i for i in np.arange(self.MinWOBLimit, self.MaxWOBLimit, self.WOBincrease)]
         self.rpmList = [i for i in np.arange(self.MinRPMLimit, self.MaxRPMLimit, self.RPMincrease)]
+        #Rpm index 9 = 500 rpm
+        self.rpmIndex = 9
+        #WOB index 8 = 5 wob
+        self.wobIndex = 8
         self.calibrationStep = 0
         self.doneDrilling = False
         self.MSEList = []
@@ -100,7 +104,7 @@ class Coordination(threading.Thread):
                 self.MSEList.append(self.hoistingSystem.calcMSE())
                 if self.setpointCountdown <= 0:
                     self.numberCountDown +=1
-                    if self.numberCountDown >= 6:
+                    if self.numberCountDown >= 11: # THIS IS WHERE WE DECIDE HOW MANY SECONDS TO LOOK FOR MIN-MAX DIFFERENCE (validate MSE) - NB! THIS IS FOR EACH OF TWO WINDOWS
                         self.numberCountDown = 0
                         self.fillList = False
             else:
@@ -117,7 +121,7 @@ class Coordination(threading.Thread):
             time.sleep(0.05)
             #----------Just Started State---------#
             if CoordinatorStates.JustStarted == self.coordinatorState:
-                self.calibrationStep = 0
+                self.calibrationStep = 1
                 #The automate methode initiazies the procedure for calibratinon in the Arduino code
                 #self.hoistingSystem.automate()
                 self.coordinatorState = CoordinatorStates.Calibrating
@@ -142,13 +146,13 @@ class Coordination(threading.Thread):
             #----------Start Drilling State---------#
             if CoordinatorStates.StartDrilling == self.coordinatorState:
                 
-                self.hoistingSystem.setWOB(5)
-                self.oldRPM = 450
-                self.oldWOB = 2.0
+                self.hoistingSystem.setWOB(self.wobList[self.wobIndex])
+                self.oldRPM = 500
+                self.oldWOB = 5
                 time.sleep(1)
                 self.circulationSystem.turnOnPump()
                 time.sleep(1)
-                self.rotationSystem.setRPM(500)
+                self.rotationSystem.setRPM(self.rpmList[self.rpmIndex])
                 time.sleep(1)
                 self.hoistingSystem.wob(1)
                 self.coordinatorState = CoordinatorStates.Drilling
@@ -160,32 +164,17 @@ class Coordination(threading.Thread):
                 if self.areWeFinishedYet():
                     self.coordinatorState = CoordinatorStates.Completed
                     logging.debug("coordinator" + str(self.coordinatorState))
-
                 problem = self.lookForProblems()
                 self.optimizeROP()
-                if Problem.NoProblem ==  problem:
-                    #Continue with ROP optimization if no problem
-                    
-                    pass
-                else:
+                if Problem.NoProblem !=  problem:
                     if not self.problemFlag:
-                        #self.hoistingSystem.setWOB(2.5)
-                        #self.rotationSystem.setRPM(500)
                         logging.debug("coordinator" + str(self.coordinatorState))
                         logging.debug("problem" + str(problem))
-                        #self.mitigate(problem)
+                        self.mitigate(problem)
                         self.problemFlag = True
-
-                self.newFormation = self.lookForNewFormation()
-                anotherProblem = self.lookForProblems()
-                if Problem.NoProblem == anotherProblem:
-                    #self.hoistingSystem.wob(1)
-                    self.problemFlag = False
                 
-                else:
-                    logging.debug("coordinator" + str(self.coordinatorState))
-                    logging.debug("problem " + str(problem))
-                    #self.mitigate(problem)
+                self.newFormation = self.lookForNewFormation()
+
 
             #----------Aborted State---------#
             if CoordinatorStates.Aborted == self.coordinatorState:
@@ -265,21 +254,11 @@ class Coordination(threading.Thread):
         return (self.hoistingData.getHoistingSensorData()["hoistingMode"] == 8)
     
     def areWeFinishedYet(self):
-        if self.hoistingData.getHoistingSensorData()["stepperArduinoPos1"] > 650 and self.doneDrilling==False:
+        if self.hoistingData.getHoistingSensorData()["TVD"] > 210 and self.doneDrilling==False:
+            logging.info("Done Drilling!")
             return True
         else:
             return False
-    
-    def mitigateTorsionalVibrations(self):
-
-        hoistData = self.hoistingData.getHoistingSensorData()
-        distanceToRaise = 5.0
-        self.hoistingSystem.wob(0)
-        self.hoistingSystem.setWOB(self.hoistingData.WOBSetPoint - 0.5)
-        self.exceptPosition = hoistData["stepperArduinoPos1"]
-        self.hoistingSystem.move(str(distanceToRaise), "1.0", "400", "4.0")
-        self.hoistingSystem.wob(1)  
-        
 
 
     def mitigateOverpressure(self):
@@ -297,33 +276,30 @@ class Coordination(threading.Thread):
             #rotationSystem.RPM = rotationSystem.RPM - RPMincrease * 0.5;
             #nMaxRPMLimit = MaxRPMLimit - RPMincrease * 0.45;
             if self.optimizeWOB:
-                self.hoistingSystem.setWOB(self.oldWOB)
+                self.hoistingSystem.setWOB(self.manipulateWOB("decrease"))
                 self.optimizeWOB = False
                 self.optimizeRPM = True
             else:
-                self.rotationSystem.setRPM(self.oldRPM)
+                self.rotationSystem.setRPM(self.manipulateRPM("decrease"))
                 self.optimizeRPM = False
                 self.optimizeWOB = True
 
-            pass
         if Problem.NormalAxialVibrations == problem:
             if self.optimizeWOB:
-                self.hoistingSystem.setWOB(self.oldWOB)
+                self.hoistingSystem.setWOB(self.manipulateWOB("decrease"))
                 self.optimizeWOB = False
                 self.optimizeRPM = True
             else:
-                self.rotationSystem.setRPM(self.oldRPM)
+                self.rotationSystem.setRPM(self.manipulateRPM("decrease"))
                 self.optimizeRPM = False
                 self.optimizeWOB = True
-            #rotationSystem.RPM -= RPMincrease / 2;
-            pass
         if Problem.LateralVibrations == problem:
             if self.optimizeWOB:
-                self.hoistingSystem.setWOB(self.oldWOB)
+                self.hoistingSystem.setWOB(self.manipulateWOB("decrease"))
                 self.optimizeWOB = False
                 self.optimizeRPM = True
             else:
-                self.rotationSystem.setRPM(self.oldRPM)
+                self.rotationSystem.setRPM(self.manipulateRPM("decrease"))
                 self.optimizeRPM = False
                 self.optimizeWOB = True
             pass
@@ -337,9 +313,16 @@ class Coordination(threading.Thread):
             self.hoistingSystem.move("0.1", "2", "400", "4")
             self.rotationSystem.setRPM(300)
         if Problem.TorsionalVibrations == problem:
-            self.mitigateTorsionalVibrations()
+            if self.optimizeWOB:
+                self.hoistingSystem.setWOB(self.manipulateWOB("decrease"))
+                self.optimizeWOB = False
+                self.optimizeRPM = True
+            else:
+                self.rotationSystem.setRPM(self.manipulateRPM("decrease"))
+                self.optimizeRPM = False
+                self.optimizeWOB = True
 
-        if Problem.MotorOverLoadCounter == problem:
+        if Problem.MotorOverLoad == problem:
             self.coordinatorState = CoordinatorStates.Aborted
 
     def lookForProblems(self):
@@ -387,36 +370,83 @@ class Coordination(threading.Thread):
         return currentProblem
     
     def lookForNewFormation(self):
-        halfIndex = int(len(self.MSEList)/2)
-        maxMseWindow1 = max(self.MSEList[:halfIndex])
-        minMSeWindow1 = min(self.MSEList[:halfIndex])
+        try:
+            halfIndex = int(len(self.MSEList)/2)
+            maxMseWindow1 = max(self.MSEList[:halfIndex])
+            minMSeWindow1 = min(self.MSEList[:halfIndex])
 
-        maxMseWindow2 = max(self.MSEList[halfIndex:])   
-        minMSeWindow2 = min(self.MSEList[halfIndex:])
+            maxMseWindow2 = max(self.MSEList[halfIndex:])   
+            minMSeWindow2 = min(self.MSEList[halfIndex:])
 
-        diffWindow1 = maxMseWindow1 - minMSeWindow1
-        diffWindow2 = maxMseWindow2 - minMSeWindow2
-        if diffWindow1 == 0 or diffWindow2 == 0:
+            diffWindow1 = maxMseWindow1 - minMSeWindow1
+            diffWindow2 = maxMseWindow2 - minMSeWindow2
+            if diffWindow1 == 0 or diffWindow2 == 0:
+                return False
+            change = 0
+            if diffWindow1 > diffWindow2:
+                change = (diffWindow1-diffWindow2)/diffWindow1
+            else:
+                change = (diffWindow2-diffWindow1)/diffWindow2
+            if change > 0.4: # THIS IS WHERE WE DECIDE THE PERTCENTAGE ERROR IN MSE OVER A TIME WINDOW THAT TRIGGER NEW FORMATION
+                print("New Formation")
+                return True
+            else:
+                return False
+        except:
             return False
-        change = 0
-        if diffWindow1 > diffWindow2:
-            change = (diffWindow1-diffWindow2)/diffWindow1
+            
+    
+    def manipulateWOB(self,command):
+        newWOB = 0
+        if command == "increase":
+            if self.wobIndex+1 < len(self.wobList):
+                self.wobIndex += 1
+                newWOB = self.wobList[self.wobIndex]
+                
+            else:
+                newWOB = self.wobList[self.wobIndex]
+        elif command=="decrease":
+            if self.wobIndex -1 >= 0:
+                self.wobIndex -= 1 
+                newWOB = self.wobList[self.wobIndex]
+                
+            else:
+                newWOB = self.wobList[self.wobIndex]
         else:
-            change = (diffWindow2-diffWindow1)/diffWindow2
-        if change > 0.4:
-            print("New Formation")
-            return True
+            logging.info("Bad WOB command")
+            newWOB = self.wobList[self.wobIndex]
+        return newWOB
+
+
+    def manipulateRPM(self,command):
+        newRPM = 0
+        if command == "increase":
+            if self.rpmIndex+1 < len(self.rpmList):
+                self.rpmIndex += 1
+                newRPM = self.rpmList[self.rpmIndex]
+                
+            else:
+                newRPM = self.rpmList[self.rpmIndex]
+        elif command=="decrease":
+            if self.rpmIndex -1 >= 0:
+                self.rpmIndex -= 1 
+                newRPM = self.rpmList[self.rpmIndex]
+                
+            else:
+                newRPM = self.rpmList[self.rpmIndex]
         else:
-            return False
-        
+            logging.info("Bad RPM command")
+            newRPM = self.rpmList[self.rpmIndex]
+
+        return newRPM
 
     def optimizeROP(self):
         #Checks wether to manipulate wob or rpm
         if self.optimizeWOB:
             
             if not self.calculatingROP:
-                newWOB = self.hoistingData.WOBSetPoint + self.WOBincrease
-                if newWOB > self.MinWOBLimit and newWOB < self.MaxWOBLimit and self.numberOfInc < 5:
+                newWOB = self.manipulateWOB("increase")
+                if newWOB >= self.MinWOBLimit and newWOB <= self.MaxWOBLimit and self.numberOfInc < 5:
                     self.hoistingSystem.setWOB(newWOB)
                     self.hoistingSystem.wob(1)
                     self.calculatingROP = True
@@ -438,14 +468,13 @@ class Coordination(threading.Thread):
                     self.optimizeWOB = False
                     self.optimizeRPM = True
                 self.instanceSinceBestROP +=1
-                self.oldWOB = self.hoistingData.WOBSetPoint
                 
                 
         if self.optimizeRPM:
             if not self.calculatingROP:
                 
-                newRPM = self.rotationSystem.setPointRPM + self.RPMincrease
-                if newRPM> self.MinRPMLimit and newRPM < self.MaxRPMLimit and self.numberOfInc < 5:
+                newRPM = self.manipulateRPM("increase")
+                if newRPM >= self.MinRPMLimit and newRPM <= self.MaxRPMLimit and self.numberOfInc < 5:
                     self.rotationSystem.setRPM(newRPM)
                     self.calculatingROP = True
                     self.calculatingROPTimer = time.time()
@@ -466,5 +495,5 @@ class Coordination(threading.Thread):
                     self.optimizeRPM = False
                     self.optimizeWOB = True
                 self.instanceSinceBestROP +=1
-                self.oldRPM = self.rotationSystem.setPointRPM
+
 

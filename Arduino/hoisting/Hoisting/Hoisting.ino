@@ -992,7 +992,7 @@ void ReceiveData()
       }
       if (WOBControlenabled) {
         WOBControl.SetMode(AUTOMATIC);
-        WOBspeed = 300.0;
+        WOBspeed = 150.0; // was 300
         WOBFREQ_Hz = (1 / WOBspeed) * 1000000.0;
         startTimer(TC1, 0, TC3_IRQn, WOBFREQ_Hz);
         Mode = Modes::WOBCONTROL;

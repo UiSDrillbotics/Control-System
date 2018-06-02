@@ -469,12 +469,14 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         self.UCS = []
         self.wobSet = []
         self.rpmSet = []
-
+        self.ropSet = []
+        self.mseSet = []
+        
         #Init the RPM plot
         layoutRPM = QHBoxLayout()
         
         self.RPMPlot = pg.PlotWidget()
-        self.RPMPlot.setYRange(0, 60)
+        self.RPMPlot.setYRange(0, 45)
         self.RPMPlot.setXRange(0,1500)
         layoutRPM.addWidget(self.RPMPlot)
         self.graphicsView_adv_RPM.setLayout(layoutRPM) # Places the plot in the graphisView from the desinger
@@ -492,7 +494,7 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         layoutTorque = QHBoxLayout()
         
         self.torquePlot = pg.PlotWidget()
-        self.torquePlot.setYRange(0, 60)
+        self.torquePlot.setYRange(0, 45)
         self.torquePlot.setXRange(0,4)
         layoutTorque.addWidget(self.torquePlot)
         self.graphicsView_adv_torque.setLayout(layoutTorque)
@@ -510,7 +512,7 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         layoutROP = QHBoxLayout()
         
         self.ROPPlot = pg.PlotWidget()
-        self.ROPPlot.setYRange(0, 60)
+        self.ROPPlot.setYRange(0, 45)
         self.ROPPlot.setXRange(0,80)
         layoutROP.addWidget(self.ROPPlot)
         self.graphicsView_adv_ROP.setLayout(layoutROP)
@@ -528,7 +530,7 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         layoutWOB = QHBoxLayout()
         
         self.WOBPlot = pg.PlotWidget()
-        self.WOBPlot.setYRange(0, 60)
+        self.WOBPlot.setYRange(0, 45)
         self.WOBPlot.setXRange(0,20)
         layoutWOB.addWidget(self.WOBPlot)
         self.graphicsView_adv_WOB.setLayout(layoutWOB)
@@ -546,7 +548,7 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         layoutPressure = QHBoxLayout()
         
         self.PressurePlot = pg.PlotWidget()
-        self.PressurePlot.setYRange(0, 60)
+        self.PressurePlot.setYRange(0, 45)
         self.PressurePlot.setXRange(0,5)
         layoutPressure.addWidget(self.PressurePlot)
         self.graphicsView_adv_Pressure.setLayout(layoutPressure)
@@ -564,7 +566,7 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         layoutMSE = QHBoxLayout()
         
         self.MSEPlot = pg.PlotWidget()
-        self.MSEPlot.setYRange(0, 60)
+        self.MSEPlot.setYRange(0, 45)
         self.MSEPlot.setXRange(0,500)
         layoutMSE.addWidget(self.MSEPlot)
         self.graphicsView_adv_MSE.setLayout(layoutMSE)
@@ -582,7 +584,7 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         layoutBitTorque = QHBoxLayout()
         
         self.BitTorquePlot = pg.PlotWidget()
-        self.BitTorquePlot.setYRange(0, 60)
+        self.BitTorquePlot.setYRange(0, 45)
         self.BitTorquePlot.setXRange(0,4)
         layoutBitTorque.addWidget(self.BitTorquePlot)
         self.graphicsView_adv_bitTorque.setLayout(layoutBitTorque)
@@ -600,7 +602,7 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         layoutFormation = QHBoxLayout()
         
         self.FormationPlot = pg.PlotWidget()
-        self.FormationPlot.setYRange(0, 60)
+        self.FormationPlot.setYRange(0, 45)
         self.FormationPlot.setXRange(0,1)
         layoutFormation.addWidget(self.FormationPlot)
         self.graphicsView_adv_formation.setLayout(layoutFormation)
@@ -618,7 +620,7 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         layoutUCS = QHBoxLayout()
         
         self.UCSPlot = pg.PlotWidget()
-        self.UCSPlot.setYRange(0, 60)
+        self.UCSPlot.setYRange(0, 45)
         self.UCSPlot.setXRange(0,175)
         layoutUCS.addWidget(self.UCSPlot)
         self.graphicsView_adv_UCS.setLayout(layoutUCS)
@@ -649,7 +651,45 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         self.p7.setLabels(left='RPM',bottom="WOB")
         self.RPMWOBCurve = self.p7.plot(symbol="x")
         self.RPMWOBCurve.setPen(pg.mkPen(color="#fff000", width=2))
-        self.p6.getAxis('right').setLabel('RPM', color='#0000ff')
+        self.p7.getAxis('right').setLabel('RPM', color='#0000ff')
+
+        #ROPStep plot
+        layoutROPStep = QHBoxLayout()
+        
+        self.layoutROPPlot = pg.PlotWidget()
+        self.layoutROPPlot.setYRange(0, 2)
+        self.layoutROPPlot.setXRange(0,100)
+        layoutROPStep.addWidget(self.layoutROPPlot)
+        self.graphicsView_adv_ROPStep.setLayout(layoutROPStep)
+
+        
+        self.p8 = self.layoutROPPlot.plotItem
+        
+        self.p8.showGrid(x = True, y = True, alpha = 0.7) 
+        
+        self.p8.setLabels(left='ROP',bottom="Algorithmic steps")
+        self.ROPSetCurve = self.p8.plot(symbol="o")
+        self.ROPSetCurve.setPen(pg.mkPen(color="#fff000", width=2))
+        self.p8.getAxis('right').setLabel('ROP', color='#0000ff')
+
+        #MSEStep plot
+        layoutMSEStep = QHBoxLayout()
+        
+        self.layoutMSEPlot = pg.PlotWidget()
+        self.layoutMSEPlot.setYRange(0, 400)
+        self.layoutMSEPlot.setXRange(0,100)
+        layoutMSEStep.addWidget(self.layoutMSEPlot)
+        self.graphicsView_adv_MSEStep.setLayout(layoutMSEStep)
+
+        
+        self.p9 = self.layoutMSEPlot.plotItem
+        
+        self.p9.showGrid(x = True, y = True, alpha = 0.7) 
+        
+        self.p9.setLabels(left='MSE',bottom="Algorithmic steps")
+        self.MSESetCurve = self.p9.plot(symbol="o")
+        self.MSESetCurve.setPen(pg.mkPen(color="#fff000", width=2))
+        self.p8.getAxis('right').setLabel('MSE', color='#0000ff')
 
 
     def updateLabels(self,newFormation,coordinatorProblem,circulationMode,topDriveMode,hoistingMode,rock,wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
@@ -698,25 +738,25 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         self.progressBar_adv_RPM.setValue(int(RPM))
         self.progressBar_adv_axialVib.setValue(int(WOB*9.81))
 
-        if TVD >= 0 and TVD < 10:
+        if TVD >= 0 and TVD < 7.5:
             if not self.radioButton_12.isChecked():
                 self.radioButton_12.toggle()
-        elif TVD >= 10 and TVD < 20:
+        elif TVD >= 7.5 and TVD < 15:
             if not self.radioButton_13.isChecked():
                 self.radioButton_13.toggle()
-        elif TVD >= 20 and TVD < 30:
+        elif TVD >= 15 and TVD < 22.5:
             if not self.radioButton_16.isChecked():
                 self.radioButton_16.toggle()
-        elif TVD >= 30 and TVD < 40:
+        elif TVD >= 22.5 and TVD < 30:
             if not self.radioButton_10.isChecked():
                 self.radioButton_10.toggle()
-        elif TVD >= 40 and TVD < 50:
+        elif TVD >= 30 and TVD < 37.5:
             if not self.radioButton_14.isChecked():
                 self.radioButton_14.toggle()
-        elif TVD >= 50 and TVD < 60:
+        elif TVD >= 37.5 and TVD < 45:
             if not self.radioButton_15.isChecked():
                 self.radioButton_15.toggle()
-        elif TVD >= 60:
+        elif TVD >= 45:
             if not self.radioButton_9.isChecked():
                 self.radioButton_9.toggle()
         else:
@@ -770,14 +810,21 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
             self.RPMWOBPlot.addItem(ROPpos)
             oldWOBset  = wobSetpoint
             oldRPMset = rpmSetpoint
-            if len(self.wobSet) < 15:
+            if len(self.wobSet) < 100:
                 self.wobSet.append(wobSetpoint)
                 self.rpmSet.append(rpmSetpoint)
+                self.ropSet.append(ROP_15s)
+                self.mseSet.append(MSE)
             else:
                 self.wobSet = self.wobSet[1:] + [wobSetpoint]
                 self.rpmSet = self.rpmSet[1:] + [rpmSetpoint]
+                self.ropSet = self.ropSet[1:] + [ROP_15s]
+                self.mseSet = self.mseSet[1:] + [MSE]
             
             self.RPMWOBCurve.setData(self.wobSet,self.rpmSet)
+            self.ROPSetCurve.setData(self.ropSet)
+            self.MSESetCurve.setData(self.mseSet)
+    
     
         if hoistingMode == 10:
             self.label_adv_axialVib.setStyleSheet("background-color: red")
