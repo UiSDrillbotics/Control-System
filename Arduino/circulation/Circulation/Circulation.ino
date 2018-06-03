@@ -25,7 +25,7 @@ float pump_start_time;
 float time_since_pump_start;
 
 float maximum_pressure = 4.5;
-float minimum_pressure = 1.6; // supposed to be 2.0
+float minimum_pressure = 2.0; // supposed to be 2.0
 
 float dataSampleInterval; // [s]
 float filterTimeConstant = 250.0 / 1000.0; // [s]

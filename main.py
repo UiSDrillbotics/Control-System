@@ -113,7 +113,7 @@ class GetData(QThread):
             act3 = hSensorData["stepperArduinoPos3"]
             
             vibration = 0
-            velocity = hoistingSystem.velocity()
+            velocity = hoistingSystem.velocity()*6
 
             timeNow = float(self.t.elapsed())/(1000*60)
             if TVD == 0:
@@ -433,13 +433,10 @@ class ControlUI(QWidget,Drillbotics2018.Ui_C):
             self.label_Stick_Slip.setStyleSheet("background-color: white")
         if coordinatorProblem == 11:
             self.label_Over_Torque.setStyleSheet("background-color: red")
-        else:
-            self.label_Over_Torque.setStyleSheet("background-color: white")
+
         if coordinatorProblem == 12:
             self.label_Twist_Off.setStyleSheet("background-color: red")
-        else:
-            self.label_Twist_Off.setStyleSheet("background-color: white")
-        
+    
         if newFormation:
             self.label_New_Formation.setStyleSheet("background-color: green")
         else:
@@ -472,11 +469,33 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         self.ropSet = []
         self.mseSet = []
         
+        self.number_overTorque = 0
+        self.number_axialVib = 0
+        self.number_formation = 0
+        self.number_stickSlip = 0
+        self.number_torsialVib = 0
+        self.number_stuckPipe = 0
+
+        self.newAxialVib = True
+        self.newOverTorque = True
+        self.newFormation = True
+        self.newStickslip = True
+        self.newTorsionalVib = True
+        self.newStuckPipe = True
+
+        self.tableWidget_adv_incidents.setItem(1,0, QTableWidgetItem(str(self.number_overTorque)))
+        self.tableWidget_adv_incidents.setItem(1,1,QTableWidgetItem(str(self.number_stickSlip)))
+        self.tableWidget_adv_incidents.setItem(1,2,QTableWidgetItem(str(self.number_axialVib)))
+        self.tableWidget_adv_incidents.setItem(1,3,QTableWidgetItem("0"))
+        self.tableWidget_adv_incidents.setItem(1,4,QTableWidgetItem("0"))
+        self.tableWidget_adv_incidents.setItem(1,5,QTableWidgetItem(str(self.number_formation)))
+        
+        
         #Init the RPM plot
         layoutRPM = QHBoxLayout()
         
         self.RPMPlot = pg.PlotWidget()
-        self.RPMPlot.setYRange(0, 45)
+        self.RPMPlot.setYRange(-2, 45)
         self.RPMPlot.setXRange(0,1500)
         layoutRPM.addWidget(self.RPMPlot)
         self.graphicsView_adv_RPM.setLayout(layoutRPM) # Places the plot in the graphisView from the desinger
@@ -494,7 +513,7 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         layoutTorque = QHBoxLayout()
         
         self.torquePlot = pg.PlotWidget()
-        self.torquePlot.setYRange(0, 45)
+        self.torquePlot.setYRange(-2, 45)
         self.torquePlot.setXRange(0,4)
         layoutTorque.addWidget(self.torquePlot)
         self.graphicsView_adv_torque.setLayout(layoutTorque)
@@ -512,8 +531,8 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         layoutROP = QHBoxLayout()
         
         self.ROPPlot = pg.PlotWidget()
-        self.ROPPlot.setYRange(0, 45)
-        self.ROPPlot.setXRange(0,80)
+        self.ROPPlot.setYRange(-2, 45)
+        self.ROPPlot.setXRange(0,10)
         layoutROP.addWidget(self.ROPPlot)
         self.graphicsView_adv_ROP.setLayout(layoutROP)
 
@@ -530,7 +549,7 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         layoutWOB = QHBoxLayout()
         
         self.WOBPlot = pg.PlotWidget()
-        self.WOBPlot.setYRange(0, 45)
+        self.WOBPlot.setYRange(-2, 45)
         self.WOBPlot.setXRange(0,20)
         layoutWOB.addWidget(self.WOBPlot)
         self.graphicsView_adv_WOB.setLayout(layoutWOB)
@@ -548,7 +567,7 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         layoutPressure = QHBoxLayout()
         
         self.PressurePlot = pg.PlotWidget()
-        self.PressurePlot.setYRange(0, 45)
+        self.PressurePlot.setYRange(-2, 45)
         self.PressurePlot.setXRange(0,5)
         layoutPressure.addWidget(self.PressurePlot)
         self.graphicsView_adv_Pressure.setLayout(layoutPressure)
@@ -566,7 +585,7 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         layoutMSE = QHBoxLayout()
         
         self.MSEPlot = pg.PlotWidget()
-        self.MSEPlot.setYRange(0, 45)
+        self.MSEPlot.setYRange(-2, 45)
         self.MSEPlot.setXRange(0,500)
         layoutMSE.addWidget(self.MSEPlot)
         self.graphicsView_adv_MSE.setLayout(layoutMSE)
@@ -584,55 +603,55 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         layoutBitTorque = QHBoxLayout()
         
         self.BitTorquePlot = pg.PlotWidget()
-        self.BitTorquePlot.setYRange(0, 45)
+        self.BitTorquePlot.setYRange(-2, 45)
         self.BitTorquePlot.setXRange(0,4)
         layoutBitTorque.addWidget(self.BitTorquePlot)
         self.graphicsView_adv_bitTorque.setLayout(layoutBitTorque)
 
         
-        self.p6 = self.BitTorquePlot.plotItem
+        self.p7 = self.BitTorquePlot.plotItem
         
-        self.p6.showGrid(x = True, y = True, alpha = 0.7)   
-        self.BitTorqueCurve = self.p6.plot()
+        self.p7.showGrid(x = True, y = True, alpha = 0.7)   
+        self.BitTorqueCurve = self.p7.plot()
         self.BitTorqueCurve.setPen(pg.mkPen(color="#fff000", width=2))
         self.BitTorqueCurve.getViewBox().invertY(True)
-        self.p6.getAxis('right').setLabel('Bit Torque', color='#0000ff')
+        self.p7.getAxis('right').setLabel('Bit Torque', color='#0000ff')
 
         #Formation Plot
         layoutFormation = QHBoxLayout()
         
         self.FormationPlot = pg.PlotWidget()
-        self.FormationPlot.setYRange(0, 45)
+        self.FormationPlot.setYRange(-2, 45)
         self.FormationPlot.setXRange(0,1)
         layoutFormation.addWidget(self.FormationPlot)
         self.graphicsView_adv_formation.setLayout(layoutFormation)
 
         
-        self.p6 = self.FormationPlot.plotItem
+        self.p8 = self.FormationPlot.plotItem
         
-        self.p6.showGrid(x = True, y = True, alpha = 0.7)   
-        self.FormationCurve = self.p6.plot()
+        self.p8.showGrid(x = True, y = True, alpha = 0.7)   
+        self.FormationCurve = self.p8.plot()
         self.FormationCurve.setPen(pg.mkPen(color="#fff000", width=2))
         self.FormationCurve.getViewBox().invertY(True)
-        self.p6.getAxis('right').setLabel('Formation', color='#0000ff')
+        self.p8.getAxis('right').setLabel('Formation', color='#0000ff')
 
         #UCS Plot
         layoutUCS = QHBoxLayout()
         
         self.UCSPlot = pg.PlotWidget()
-        self.UCSPlot.setYRange(0, 45)
+        self.UCSPlot.setYRange(-2, 45)
         self.UCSPlot.setXRange(0,175)
         layoutUCS.addWidget(self.UCSPlot)
         self.graphicsView_adv_UCS.setLayout(layoutUCS)
 
         
-        self.p6 = self.UCSPlot.plotItem
+        self.p9 = self.UCSPlot.plotItem
         
-        self.p6.showGrid(x = True, y = True, alpha = 0.7)   
-        self.UCSCurve = self.p6.plot()
+        self.p9.showGrid(x = True, y = True, alpha = 0.7)   
+        self.UCSCurve = self.p9.plot()
         self.UCSCurve.setPen(pg.mkPen(color="#fff000", width=2))
         self.UCSCurve.getViewBox().invertY(True)
-        self.p6.getAxis('right').setLabel('UCS', color='#0000ff')
+        self.p9.getAxis('right').setLabel('UCS', color='#0000ff')
 
         #RPMWOB Plot
         layoutRPMWOB = QHBoxLayout()
@@ -644,33 +663,33 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         self.graphicsView_adv_RPMWOB.setLayout(layoutRPMWOB)
 
         
-        self.p7 = self.RPMWOBPlot.plotItem
+        self.p10 = self.RPMWOBPlot.plotItem
         
-        self.p7.showGrid(x = True, y = True, alpha = 0.7) 
+        self.p10.showGrid(x = True, y = True, alpha = 0.7) 
         
-        self.p7.setLabels(left='RPM',bottom="WOB")
-        self.RPMWOBCurve = self.p7.plot(symbol="x")
+        self.p10.setLabels(left='RPM',bottom="WOB")
+        self.RPMWOBCurve = self.p10.plot(symbol="x")
         self.RPMWOBCurve.setPen(pg.mkPen(color="#fff000", width=2))
-        self.p7.getAxis('right').setLabel('RPM', color='#0000ff')
+        self.p10.getAxis('right').setLabel('RPM', color='#0000ff')
 
         #ROPStep plot
         layoutROPStep = QHBoxLayout()
         
         self.layoutROPPlot = pg.PlotWidget()
-        self.layoutROPPlot.setYRange(0, 2)
+        self.layoutROPPlot.setYRange(0, 10)
         self.layoutROPPlot.setXRange(0,100)
         layoutROPStep.addWidget(self.layoutROPPlot)
         self.graphicsView_adv_ROPStep.setLayout(layoutROPStep)
 
         
-        self.p8 = self.layoutROPPlot.plotItem
+        self.p11 = self.layoutROPPlot.plotItem
         
-        self.p8.showGrid(x = True, y = True, alpha = 0.7) 
+        self.p11.showGrid(x = True, y = True, alpha = 0.7) 
         
-        self.p8.setLabels(left='ROP',bottom="Algorithmic steps")
-        self.ROPSetCurve = self.p8.plot(symbol="o")
+        self.p11.setLabels(left='ROP [cm/min]',bottom="Algorithmic steps")
+        self.ROPSetCurve = self.p11.plot()
         self.ROPSetCurve.setPen(pg.mkPen(color="#fff000", width=2))
-        self.p8.getAxis('right').setLabel('ROP', color='#0000ff')
+        self.p11.getAxis('right').setLabel('ROP', color='#0000ff')
 
         #MSEStep plot
         layoutMSEStep = QHBoxLayout()
@@ -682,18 +701,20 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         self.graphicsView_adv_MSEStep.setLayout(layoutMSEStep)
 
         
-        self.p9 = self.layoutMSEPlot.plotItem
+        self.p12 = self.layoutMSEPlot.plotItem
         
-        self.p9.showGrid(x = True, y = True, alpha = 0.7) 
+        self.p12.showGrid(x = True, y = True, alpha = 0.7) 
         
-        self.p9.setLabels(left='MSE',bottom="Algorithmic steps")
-        self.MSESetCurve = self.p9.plot(symbol="o")
+        self.p12.setLabels(left='MSE',bottom="Algorithmic steps")
+        self.MSESetCurve = self.p12.plot()
         self.MSESetCurve.setPen(pg.mkPen(color="#fff000", width=2))
-        self.p8.getAxis('right').setLabel('MSE', color='#0000ff')
+        self.p12.getAxis('right').setLabel('MSE', color='#0000ff')
 
 
     def updateLabels(self,newFormation,coordinatorProblem,circulationMode,topDriveMode,hoistingMode,rock,wobSetpoint,rpmSetpoint,velocity,TVD,act1,act2,act3,Height,Q,ROP_15s,ROP_3m,Z1,Z2,Z3,sumZ,WOB,Pressure,Torque,RPM,Vibration,MSE,UCS,torqueBit,dExponenet,timeNow):
-        WOB = float("{0:.2f}".format(WOB))
+        WOB = float("{0:.1f}".format(WOB))
+        ROP_15s = ROP_15s *6
+        ROP_3m = ROP_3m *6
         ROP_15s = float("{0:.2f}".format(ROP_15s))
         ROP_3m = float("{0:.2f}".format(ROP_3m))
         MSE = float("{0:.2f}".format(MSE))
@@ -713,6 +734,16 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         self.label_adv_Velocity.setText(str(velocity))
         self.label_adv_stepCounter.setText(str(act1))
 
+        self.label_76.setText(str(RPM))
+        self.label_33.setText(str(Torque))
+        self.label_71.setText(str(WOB))
+        self.label_79.setText(str(Pressure))
+        self.label_40.setText(str(MSE))
+        self.label_30.setText(str(UCS))
+        self.label_37.setText(str(int(WOB*9.81)))
+        self.label_39.setText(str(Torque))
+        self.label_16.setText(str(ROP_15s))
+
         self.lcdNumber_WellTVD.display(TVD)
         self.lcdNumber_adv_AvgROP.display(ROP_3m)
         self.lcdNumber_adv_ControllerRPM.display(rpmSetpoint)
@@ -720,7 +751,7 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
         self.lcdNumber_adv_Duration.display(timeNow)
 
         self.dial_adv_MSE.setValue(int(MSE))
-        self.dial_adv_ROP.setValue(int(ROP_15s*60))
+        self.dial_adv_ROP.setValue(int(ROP_15s))
         self.dial_adv_flowRate.setValue(int(Q*10))
         self.dial_adv_WOB.setValue(int(WOB))
         self.dial_adv_pressure.setValue(int(Pressure*10))
@@ -779,7 +810,7 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
                 self.pressure.append(Pressure)
                 self.torque.append(Torque)
                 self.bit_torque.append(torqueBit)
-                self.ROP.append(ROP_15s*60)
+                self.ROP.append(ROP_15s)
                 self.TVD.append(TVD)
                 self.MSE.append(MSE)
                 self.UCS.append(UCS)
@@ -789,7 +820,7 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
                 self.pressure = self.pressure[1:] + [Pressure]
                 self.torque = self.torque[1:] + [Torque]
                 self.bit_torque = self.bit_torque[1:] + [torqueBit]
-                self.ROP = self.ROP[1:] + [ROP_15s*60]
+                self.ROP = self.ROP[1:] + [ROP_15s]
                 self.TVD = self.TVD[1:] + [TVD]
                 self.MSE = self.MSE[1:] + [MSE]
                 self.UCS = self.UCS[1:] + [UCS]
@@ -828,22 +859,69 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
     
         if hoistingMode == 10:
             self.label_adv_axialVib.setStyleSheet("background-color: red")
+            self.tableWidget_adv_incidents.setItem(0,2,QTableWidgetItem("x"))
+   
+            if self.newAxialVib:
+                self.number_axialVib += 1
+                self.tableWidget_adv_incidents.setItem(1,2,QTableWidgetItem(str(self.number_axialVib)))
+                self.newAxialVib = False
+            self.tableWidget_adv_incidents.setItem(2,2,QTableWidgetItem(str(timeNow)))
+            
         else:
             self.label_adv_axialVib.setStyleSheet("background-color: white")
+            self.newAxialVib = True
+
         if coordinatorProblem == 4:
-            self.label_adv_stickSlip.setStyleSheet("background-color: red")
+            self.label_adv_torsionalVib.setStyleSheet("background-color: red")
+            self.tableWidget_adv_incidents.setItem(0,3,QTableWidgetItem("x")) 
+            if self.newTorsionalVib:
+                self.number_torsialVib += 1
+                self.tableWidget_adv_incidents.setItem(1,3,QTableWidgetItem(str(self.number_torsialVib)))
+                self.newTorsionalVib = False
+
+            self.tableWidget_adv_incidents.setItem(2,3,QTableWidgetItem(str(timeNow)))
+                
         else:
-            self.label_adv_stickSlip.setStyleSheet("background-color: white")
+            self.label_adv_torsionalVib.setStyleSheet("background-color: white")
+            self.newTorsionalVib = True
 
         if coordinatorProblem == 11:
             self.label_adv_overTorque.setStyleSheet("background-color: red")
-        else:
-            self.label_adv_overTorque.setStyleSheet("background-color: white")
+            self.tableWidget_adv_incidents.setItem(0,0,QTableWidgetItem("x"))
+            if self.newOverTorque:
+                self.number_overTorque +=1
+                self.tableWidget_adv_incidents.setItem(1,0,QTableWidgetItem(str(self.number_overTorque)))
+                self.newOverTorque = False
 
+            self.tableWidget_adv_incidents.setItem(2,0,QTableWidgetItem(str(timeNow)))
+            
+
+        if coordinatorProblem == 13:
+            self.label_adv_StickSlip.setStyleSheet("background-color: red")
+            self.tableWidget_adv_incidents.setItem(0,1,QTableWidgetItem("x"))
+            if self.newStickslip:
+                self.number_stickSlip +=1
+                self.tableWidget_adv_incidents.setItem(1,1,QTableWidgetItem(str(self.number_stickSlip)))
+                self.newStickslip = False
+            self.tableWidget_adv_incidents.setItem(2,1,QTableWidgetItem(str(timeNow)))
+        else:
+            self.label_adv_StickSlip.setStyleSheet("background-color: white")
+            self.newStickslip = True
+
+        if coordinatorProblem == 14:
+            self.label_adv_stuckPipe.setStyleSheet("background-color: red")
+            self.tableWidget_adv_incidents.setItem(0,4,QTableWidgetItem("x"))
+            if self.newStuckPipe:
+                self.number_stuckPipe +=1
+                self.tableWidget_adv_incidents.setItem(1,4,QTableWidgetItem(str(self.number_stuckPipe)))
+                self.newStuckPipe = False
+            self.tableWidget_adv_incidents.setItem(2,4,QTableWidgetItem(str(timeNow)))
+        else:
+            self.label_adv_stuckPipe.setStyleSheet("background-color: white")
+            self.newStuckPipe = True
+        
         if coordinatorProblem == 12:
             self.label_adv_TwistOff.setStyleSheet("background-color: red")
-        else:
-            self.label_adv_TwistOff.setStyleSheet("background-color: white")
 
         if circulationMode == 3:
             self.label_adv_overpressure.setStyleSheet("background-color: red")
@@ -857,8 +935,17 @@ class VisGUI(QMainWindow,VisualizationGUI.Ui_MainWindow):
 
         if newFormation:
             self.label_adv_newForm.setStyleSheet("background-color: green")
+            self.tableWidget_adv_incidents.setItem(0,5,QTableWidgetItem("x"))
+            if self.newFormation:
+                self.number_formation += 1
+                self.tableWidget_adv_incidents.setItem(1,5,QTableWidgetItem(str(self.number_formation)))
+                self.newFormation = False
+            self.tableWidget_adv_incidents.setItem(2,5,QTableWidgetItem(str(timeNow)))
+            self.p8.addLine(y=TVD)
         else:
             self.label_adv_newForm.setStyleSheet("background-color: white")
+            self.newFormation = True
+
 
 
 
@@ -891,7 +978,7 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         self.graphicsView_2.setLayout(layoutRPM) # Places the plot in the graphisView from the desinger
 
         self.p1 = self.RPMPlot.plotItem
-        self.p1.setLabels(left='RPM',bottom="Time[seconds]")
+        self.p1.setLabels(left='RPM [rev/min]',bottom="Time[minutes]")
         self.p1.showGrid(x = True, y = True, alpha = 0.7)   
         self.RPMCurve = self.p1.plot()
         self.RPMCurve.setPen(pg.mkPen(color="#fff000", width=2))
@@ -907,7 +994,7 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
 
         
         self.p2 = self.torquePlot.plotItem
-        self.p2.setLabels(left='Torque',bottom="Time[seconds]")
+        self.p2.setLabels(left='Torque [Nm]',bottom="Time[minutes]")
         self.p2.showGrid(x = True, y = True, alpha = 0.7)   
         self.torqueCurve = self.p2.plot()
         self.torqueCurve.setPen(pg.mkPen(color="#fff000", width=2))
@@ -917,13 +1004,13 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
         layoutROP = QHBoxLayout()
         
         self.ROPPlot = pg.PlotWidget()
-        self.ROPPlot.setYRange(0,50)
+        self.ROPPlot.setYRange(0,10)
         layoutROP.addWidget(self.ROPPlot)
         self.graphicsView_3.setLayout(layoutROP)
 
         
         self.p3 = self.ROPPlot.plotItem
-        self.p3.setLabels(left='ROP',bottom="Time[seconds]")
+        self.p3.setLabels(left='ROP [cm/min]',bottom="Time[minutes]")
         self.p3.showGrid(x = True, y = True, alpha = 0.7)   
         self.ROPCurve = self.p3.plot()
         self.ROPCurve.setPen(pg.mkPen(color="#fff000", width=2))
@@ -940,7 +1027,7 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
 
         
         self.p4 = self.WOBPlot.plotItem
-        self.p4.setLabels(left='WOB',bottom="Time[seconds]")
+        self.p4.setLabels(left='WOB[kg]',bottom="Time[minutes]")
         self.p4.showGrid(x = True, y = True, alpha = 0.7)   
         self.WOBCurve = self.p4.plot()
         self.WOBCurve.setPen(pg.mkPen(color="#fff000", width=2))
@@ -956,7 +1043,7 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
 
         
         self.p5 = self.PressurePlot.plotItem
-        self.p5.setLabels(left='Pressure',bottom="Time[seconds]")
+        self.p5.setLabels(left='Pressure [bar]',bottom="Time[minutes]")
         self.p5.showGrid(x = True, y = True, alpha = 0.7)   
         self.PressureCurve = self.p5.plot()
         self.PressureCurve.setPen(pg.mkPen(color="#fff000", width=2))
@@ -972,7 +1059,7 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
 
         
         self.p6 = self.MSEPlot.plotItem
-        self.p6.setLabels(left='MSE',bottom="Time[seconds]")
+        self.p6.setLabels(left='MSE [MPa]',bottom="Time[minutes]")
         self.p6.showGrid(x = True, y = True, alpha = 0.7)   
         self.MSECurve = self.p6.plot()
         self.MSECurve.setPen(pg.mkPen(color="#fff000", width=2))
@@ -985,7 +1072,7 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
             self.WOB.append(WOB)
             self.pressure.append(Pressure)
             self.torque.append(Torque)
-            self.ROP.append(ROP_15s*60)
+            self.ROP.append(ROP_15s*6)
             self.time.append(timeNow)
             self.MSE.append(MSE)
         else:
@@ -993,7 +1080,7 @@ class GUI(QWidget,pyqtdesign.Ui_Form):
             self.WOB = self.WOB[1:] + [WOB]
             self.pressure = self.pressure[1:] + [Pressure]
             self.torque = self.torque[1:] + [Torque]
-            self.ROP = self.ROP[1:] + [ROP_15s*60]
+            self.ROP = self.ROP[1:] + [ROP_15s*6]
             self.MSE = self.MSE[1:] + [MSE]
             self.time = self.time[1:] + [timeNow]
 

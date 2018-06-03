@@ -162,6 +162,7 @@ class RotationData(threading.Thread):
 
         self.overTorqueCounter = 0
         self.motorOverLoadCounter = 0
+        self.overBrakeCounter = 0
 
     def setSerialPort(self,serialPort):
         try:
